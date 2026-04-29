@@ -5,13 +5,15 @@ Main entry point for all API routes
 
 from fastapi import APIRouter
 
-# Import route modules (we'll create these next)
-# from . import auth, expenses, transactions, categories, analytics, reports, search
+# Import route modules
+from . import auth
 
 router = APIRouter()
 
 # Include route modules
-# router.include_router(auth.router, prefix="/auth", tags=["auth"])
+router.include_router(auth.router, prefix="/auth", tags=["auth"])
+
+# Placeholder for other routes (to be added in later phases)
 # router.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
 # router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 # router.include_router(categories.router, prefix="/categories", tags=["categories"])
