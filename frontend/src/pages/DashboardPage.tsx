@@ -7,6 +7,7 @@ import { ExpenseSummary } from '../components/Dashboard/ExpenseSummary'
 import { TransactionForm } from '../components/Transactions/TransactionForm'
 import { TransactionList } from '../components/Transactions/TransactionList'
 import { TransactionSummary } from '../components/Dashboard/TransactionSummary'
+import { SpendingTrendChart } from '../components/Charts/SpendingTrendChart'
 
 type FormMode = null | 'cash-expense' | 'digital-expense' | 'borrowed' | 'lent'
 
@@ -26,10 +27,16 @@ export const DashboardPage: React.FC = () => {
       <nav className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900">
                 💰 Smart Expense Manager
               </h1>
+              <button onClick={() => navigate('/')} className="text-blue-600 font-semibold">
+                Dashboard
+              </button>
+              <button onClick={() => navigate('/analytics')} className="text-gray-600 hover:text-gray-900">
+                Analytics
+              </button>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">
@@ -52,6 +59,11 @@ export const DashboardPage: React.FC = () => {
         <section className="mb-12">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">📊 Expense Summary</h2>
           <ExpenseSummary />
+        </section>
+
+        {/* Spending Trend */}
+        <section className="mb-12">
+          <SpendingTrendChart />
         </section>
 
         {/* Transaction Summary */}
