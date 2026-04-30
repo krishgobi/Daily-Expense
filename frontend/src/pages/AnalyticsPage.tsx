@@ -32,6 +32,9 @@ export const AnalyticsPage: React.FC = () => {
               <button onClick={() => navigate('/analytics')} className="text-blue-600 font-semibold">
                 Analytics
               </button>
+              <button onClick={() => navigate('/reports')} className="text-gray-600 hover:text-gray-900">
+                Reports
+              </button>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">{user?.full_name || user?.email}</span>
