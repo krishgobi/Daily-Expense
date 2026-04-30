@@ -6,9 +6,10 @@ interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
+  message: string | null
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, fullName?: string) => Promise<void>
-  logout: () => void
+  register: (email: string, password: string, fullName: string) => Promise<boolean>
+  logout: () => Promise<void>
   updateProfile: (updates: Partial<User>) => Promise<void>
   clearError: () => void
 }
@@ -24,45 +25,80 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
   // Check authentication on mount
   useEffect(() => {
-    const storedUser = authService.getStoredUser()
-    if (storedUser && authService.isAuthenticated()) {
-      setUser(storedUser)
-      setIsAuthenticated(true)
+    const loadUser = async () => {
+      try {
+        const hasSession = await authService.isAuthenticated()
+
+        if (!hasSession) {
+          setUser(null)
+          setIsAuthenticated(false)
+          return
+        }
+
+        const currentUser = await authService.getCurrentUser()
+        setUser(currentUser)
+        setIsAuthenticated(!!currentUser)
+      } catch {
+        const storedUser = authService.getStoredUser()
+        setUser(storedUser)
+        setIsAuthenticated(!!storedUser)
+      } finally {
+        setIsLoading(false)
+      }
     }
-    setIsLoading(false)
+
+    loadUser()
   }, [])
 
   const login = async (email: string, password: string) => {
     try {
       setError(null)
+      setMessage(null)
       const result = await authService.login(email, password)
+      if (!result.user) {
+        throw new Error('Login did not return a user.')
+      }
       setUser(result.user)
       setIsAuthenticated(true)
     } catch (err: any) {
-      const message = err.response?.data?.detail || 'Login failed'
+      const message = err.message || err.response?.data?.detail || 'Login failed'
       setError(message)
       throw err
     }
   }
 
-  const register = async (email: string, password: string, fullName?: string) => {
+  const register = async (email: string, password: string, fullName: string) => {
     try {
       setError(null)
+      setMessage(null)
       const result = await authService.register(email, password, fullName)
+      if (result.requiresEmailConfirmation) {
+        setUser(null)
+        setIsAuthenticated(false)
+        setMessage('Account created. Please confirm your email, then sign in.')
+        return false
+      }
+
+      if (!result.user) {
+        throw new Error('Registration did not return a user.')
+      }
+
       setUser(result.user)
       setIsAuthenticated(true)
+      return true
     } catch (err: any) {
-      const message = err.response?.data?.detail || 'Registration failed'
+      const message = err.message || err.response?.data?.detail || 'Registration failed'
       setError(message)
       throw err
     }
   }
 
-  const logout = () => {
-    authService.logout()
+  const logout = async () => {
+    await authService.logout()
     setUser(null)
     setIsAuthenticated(false)
   }
@@ -73,13 +109,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const result = await authService.updateProfile(updates)
       setUser(result)
     } catch (err: any) {
-      const message = err.response?.data?.detail || 'Update failed'
+      const message = err.message || err.response?.data?.detail || 'Update failed'
       setError(message)
       throw err
     }
   }
 
-  const clearError = () => setError(null)
+  const clearError = () => {
+    setError(null)
+    setMessage(null)
+  }
 
   return (
     <AuthContext.Provider
@@ -88,6 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isAuthenticated,
         isLoading,
         error,
+        message,
         login,
         register,
         logout,

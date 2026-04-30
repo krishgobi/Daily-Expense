@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useExpenses, useCategories } from '../../hooks/useExpenses'
+import { useExpenses } from '../../hooks/useExpenses'
 import { format } from 'date-fns'
 
 interface ExpenseFormProps {
@@ -15,10 +15,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('GPay')
-  const [categoryId, setCategoryId] = useState('')
   const [error, setError] = useState('')
 
-  const { categories } = useCategories()
   const { createCashExpense, createDigitalExpense, isCreatingCash, isCreatingDigital } = useExpenses()
 
   const isLoading = isCreatingCash || isCreatingDigital
@@ -44,7 +42,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
           purpose,
           amount: numAmount,
           date,
-          categoryId: categoryId || undefined,
           description: description || undefined,
           location: location || undefined,
         })
@@ -54,7 +51,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
           amount: numAmount,
           paymentMethod,
           date,
-          categoryId: categoryId || undefined,
           description: description || undefined,
           location: location || undefined,
         })
@@ -66,7 +62,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
       setDate(format(new Date(), 'yyyy-MM-dd'))
       setLocation('')
       setDescription('')
-      setCategoryId('')
 
       if (onSuccess) onSuccess()
     } catch (err: any) {
@@ -75,22 +70,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-6">
+    <form onSubmit={handleSubmit} className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <h2 className="mb-6 text-xl font-semibold text-gray-900 dark:text-gray-100">
         Add {expenseType === 'CASH' ? 'Cash' : 'Digital'} Expense
       </h2>
 
-      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+      {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300">{error}</div>}
 
       {type === undefined && (
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Expense Type
           </label>
           <select
             value={expenseType}
             onChange={(e) => setExpenseType(e.target.value as 'CASH' | 'DIGITAL')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-gray-300 dark:focus:ring-gray-700"
           >
             <option value="CASH">Cash</option>
             <option value="DIGITAL">Digital</option>
@@ -100,7 +95,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Purpose *
           </label>
           <input
@@ -108,13 +103,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
             placeholder="e.g., Lunch, Gas"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-300 dark:focus:ring-gray-700"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Amount *
           </label>
           <input
@@ -124,44 +119,26 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-300 dark:focus:ring-gray-700"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Date *
           </label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-gray-300 dark:focus:ring-gray-700"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category
-          </label>
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">No category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.icon} {cat.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Location
           </label>
           <input
@@ -169,12 +146,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="Where did you spend?"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-300 dark:focus:ring-gray-700"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Description
           </label>
           <textarea
@@ -182,19 +159,19 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Additional notes"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-300 dark:focus:ring-gray-700"
           />
         </div>
 
         {expenseType === 'DIGITAL' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
               Payment Method
             </label>
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-gray-300 dark:focus:ring-gray-700"
             >
               <option value="GPay">Google Pay</option>
               <option value="PhonePe">PhonePe</option>
@@ -209,7 +186,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="h-11 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50 dark:focus:ring-blue-950"
         >
           {isLoading ? 'Adding...' : 'Add Expense'}
         </button>

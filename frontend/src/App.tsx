@@ -7,6 +7,9 @@ import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { SearchPage } from './pages/SearchPage'
+import { CalendarPage } from './pages/CalendarPage'
+import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +49,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ReportsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/search"
+              element={
+                <ProtectedRoute>
+                  <SearchPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <CalendarPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfileSettingsPage />
                 </ProtectedRoute>
               }
             />

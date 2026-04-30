@@ -67,7 +67,7 @@ class ReportService {
     link.setAttribute('download', filename)
     document.body.appendChild(link)
     link.click()
-    link.parentURL.removeChild(link)
+    link.parentNode?.removeChild(link)
   }
 
   async deleteReport(id: string) {

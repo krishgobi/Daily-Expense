@@ -1,16 +1,19 @@
 import React from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useTypeBreakdown } from '../../hooks/useAnalytics'
+
+const formatCurrency = (value: string | number) =>
+  `₹${Number(value).toFixed(2)}`
 
 export const ExpenseTypeChart: React.FC = () => {
   const { data, isLoading } = useTypeBreakdown()
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading chart...</div>
+    return <div className="py-8 text-center text-gray-600 dark:text-gray-400">Loading chart...</div>
   }
 
   if (!data) {
-    return <div className="text-center py-8 text-gray-500">No data available</div>
+    return <div className="py-8 text-center text-gray-500 dark:text-gray-400">No data available</div>
   }
 
   const chartData = [
@@ -29,14 +32,14 @@ export const ExpenseTypeChart: React.FC = () => {
   ]
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h3 className="text-lg font-semibold mb-4">Cash vs Digital</h3>
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Cash vs Digital</h3>
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
           <YAxis />
-          <Tooltip formatter={(value) => `₹${value.toFixed(2)}`} />
+          <Tooltip formatter={formatCurrency} />
           <Bar dataKey="amount" fill="#8884d8" radius={[8, 8, 0, 0]}>
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -46,15 +49,15 @@ export const ExpenseTypeChart: React.FC = () => {
       </ResponsiveContainer>
 
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <div className="bg-green-50 p-4 rounded border border-green-200">
-          <p className="text-sm text-gray-600">Cash</p>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900/70 dark:bg-green-950/30">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Cash</p>
           <p className="text-2xl font-bold text-green-600">₹{data.CASH.amount.toFixed(2)}</p>
-          <p className="text-xs text-gray-500">{data.CASH.percentage}% • {data.CASH.count} transactions</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{data.CASH.percentage}% • {data.CASH.count} transactions</p>
         </div>
-        <div className="bg-blue-50 p-4 rounded border border-blue-200">
-          <p className="text-sm text-gray-600">Digital</p>
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/70 dark:bg-blue-950/30">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Digital</p>
           <p className="text-2xl font-bold text-blue-600">₹{data.DIGITAL.amount.toFixed(2)}</p>
-          <p className="text-xs text-gray-500">{data.DIGITAL.percentage}% • {data.DIGITAL.count} transactions</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{data.DIGITAL.percentage}% • {data.DIGITAL.count} transactions</p>
         </div>
       </div>
     </div>

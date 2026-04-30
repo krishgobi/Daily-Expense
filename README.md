@@ -1,4 +1,4 @@
-# Smart Personal Expense Manager
+# Tracksy.AI
 
 A production-ready personal expense tracking application built with React, FastAPI, and Supabase.
 

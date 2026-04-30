@@ -23,40 +23,38 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
   }
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading expenses...</div>
+    return <div className="py-8 text-center text-gray-600 dark:text-gray-400">Loading expenses...</div>
   }
 
   if (expenses.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="py-8 text-center text-gray-500 dark:text-gray-400">
         No expenses found. Add your first expense to get started!
       </div>
     )
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-xl font-bold mb-4">Recent Expenses</h2>
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Recent Expenses</h2>
 
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b">
-              <th className="text-left py-2 px-4">Date</th>
-              <th className="text-left py-2 px-4">Purpose</th>
-              <th className="text-left py-2 px-4">Category</th>
-              <th className="text-left py-2 px-4">Type</th>
-              <th className="text-right py-2 px-4">Amount</th>
-              <th className="text-center py-2 px-4">Actions</th>
+            <tr className="border-b border-gray-200 dark:border-gray-700">
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Date</th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Purpose</th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Type</th>
+              <th className="px-4 py-2 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Amount</th>
+              <th className="px-4 py-2 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Actions</th>
             </tr>
           </thead>
           <tbody>
             {expenses.map((expense) => (
-              <tr key={expense.id} className="border-b hover:bg-gray-50">
-                <td className="py-3 px-4">{format(new Date(expense.date), 'MMM dd, yyyy')}</td>
-                <td className="py-3 px-4">{expense.purpose}</td>
-                <td className="py-3 px-4">{expense.category_id ? 'Category' : 'Uncategorized'}</td>
-                <td className="py-3 px-4">
+              <tr key={expense.id} className="border-b border-gray-100 transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/70">
+                <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{format(new Date(expense.date), 'MMM dd, yyyy')}</td>
+                <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{expense.purpose}</td>
+                <td className="px-4 py-3">
                   <span
                     className={`px-2 py-1 rounded text-sm ${
                       expense.type === 'CASH'
@@ -67,12 +65,12 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
                     {expense.type}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-right font-semibold">₹{expense.amount.toFixed(2)}</td>
-                <td className="py-3 px-4 text-center">
+                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">₹{expense.amount.toFixed(2)}</td>
+                <td className="px-4 py-3 text-center">
                   <button
                     onClick={() => handleDelete(expense.id)}
                     disabled={isDeleting}
-                    className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                    className="text-sm font-medium text-red-600 transition hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
                   >
                     Delete
                   </button>
@@ -88,17 +86,17 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
           <button
             onClick={() => setOffset(Math.max(0, offset - limit))}
             disabled={offset === 0}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
           >
             Previous
           </button>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             Showing {offset + 1} to {Math.min(offset + limit, total)} of {total}
           </span>
           <button
             onClick={() => setOffset(offset + limit)}
             disabled={offset + limit >= total}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
           >
             Next
           </button>

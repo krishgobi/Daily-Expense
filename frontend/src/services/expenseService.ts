@@ -9,52 +9,17 @@ export interface Expense {
   description?: string
   date: string
   location?: string
-  category_id?: string
   payment_method?: string
   created_at: string
   updated_at: string
 }
 
-export interface Category {
-  id: string
-  user_id: string
-  name: string
-  icon?: string
-  color?: string
-  created_at: string
-}
-
 class ExpenseService {
-  // Categories
-  async createCategory(name: string, icon?: string, color?: string) {
-    const response = await api.post<{ status: string; data: Category }>('/categories', {
-      name,
-      icon,
-      color,
-    })
-    return response.data.data
-  }
-
-  async getCategories() {
-    const response = await api.get<{ status: string; data: Category[] }>('/categories')
-    return response.data.data
-  }
-
-  async updateCategory(id: string, updates: Partial<Category>) {
-    const response = await api.put<{ status: string; data: Category }>(`/categories/${id}`, updates)
-    return response.data.data
-  }
-
-  async deleteCategory(id: string) {
-    await api.delete(`/categories/${id}`)
-  }
-
   // Expenses - Cash
   async createCashExpense(
     purpose: string,
     amount: number,
     date: string,
-    categoryId?: string,
     description?: string,
     location?: string,
   ) {
@@ -64,8 +29,6 @@ class ExpenseService {
       date,
       description,
       location,
-    }, {
-      params: categoryId ? { category_id: categoryId } : {},
     })
     return response.data.data
   }
@@ -76,7 +39,6 @@ class ExpenseService {
     amount: number,
     paymentMethod: string,
     date: string,
-    categoryId?: string,
     description?: string,
     location?: string,
   ) {
@@ -87,15 +49,12 @@ class ExpenseService {
       date,
       description,
       location,
-    }, {
-      params: categoryId ? { category_id: categoryId } : {},
     })
     return response.data.data
   }
 
   async getExpenses(filters?: {
     type?: string
-    categoryId?: string
     dateFrom?: string
     dateTo?: string
     limit?: number
@@ -108,7 +67,6 @@ class ExpenseService {
     }>('/expenses', {
       params: {
         expense_type: filters?.type,
-        category_id: filters?.categoryId,
         date_from: filters?.dateFrom,
         date_to: filters?.dateTo,
         limit: filters?.limit || 20,

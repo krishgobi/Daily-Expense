@@ -1,4 +1,4 @@
-# Frontend - Smart Expense Manager
+# Frontend - Tracksy.AI
 
 React 18 + TypeScript + Vite + TailwindCSS
 

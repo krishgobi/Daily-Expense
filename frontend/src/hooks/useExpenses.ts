@@ -1,44 +1,8 @@
-import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import expenseService, { Expense, Category } from '../services/expenseService'
-
-export const useCategories = () => {
-  const queryClient = useQueryClient()
-
-  const { data: categories = [], isLoading, error } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => expenseService.getCategories(),
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (data: { name: string; icon?: string; color?: string }) =>
-      expenseService.createCategory(data.name, data.icon, data.color),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] })
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => expenseService.deleteCategory(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] })
-    },
-  })
-
-  return {
-    categories,
-    isLoading,
-    error,
-    createCategory: createMutation.mutate,
-    isCreating: createMutation.isPending,
-    deleteCategory: deleteMutation.mutate,
-    isDeleting: deleteMutation.isPending,
-  }
-}
+import expenseService from '../services/expenseService'
 
 export const useExpenses = (filters?: {
   type?: string
-  categoryId?: string
   dateFrom?: string
   dateTo?: string
   limit?: number
@@ -56,7 +20,6 @@ export const useExpenses = (filters?: {
       purpose: string
       amount: number
       date: string
-      categoryId?: string
       description?: string
       location?: string
     }) =>
@@ -64,7 +27,6 @@ export const useExpenses = (filters?: {
         data.purpose,
         data.amount,
         data.date,
-        data.categoryId,
         data.description,
         data.location,
       ),
@@ -79,7 +41,6 @@ export const useExpenses = (filters?: {
       amount: number
       paymentMethod: string
       date: string
-      categoryId?: string
       description?: string
       location?: string
     }) =>
@@ -88,7 +49,6 @@ export const useExpenses = (filters?: {
         data.amount,
         data.paymentMethod,
         data.date,
-        data.categoryId,
         data.description,
         data.location,
       ),

@@ -4,7 +4,7 @@ Dependency injection for routes
 """
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -17,7 +17,7 @@ security = HTTPBearer()
 
 
 def get_current_user(
-    credentials: HTTPAuthCredentials = Depends(security),
+    credentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
     """Get current authenticated user from JWT token."""

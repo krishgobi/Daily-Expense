@@ -1,6 +1,6 @@
 """
 FastAPI Application Entry Point
-Smart Personal Expense Manager
+Tracksy.AI
 """
 
 from fastapi import FastAPI
@@ -17,7 +17,7 @@ settings = Settings()
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
     # Startup
-    print("🚀 Starting Smart Expense Manager API...")
+    print("🚀 Starting Tracksy.AI API...")
     yield
     # Shutdown
     print("🛑 Shutting down API...")
@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.API_TITLE,
-    description="Smart Personal Expense Manager API",
+    description="Tracksy.AI API",
     version=settings.API_VERSION,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -49,7 +49,7 @@ async def health_check():
     """Health check endpoint for monitoring."""
     return {
         "status": "healthy",
-        "service": "Smart Expense Manager API",
+        "service": "Tracksy.AI API",
         "version": settings.API_VERSION,
     }
 
@@ -62,7 +62,7 @@ app.include_router(api_v1_router, prefix=settings.API_PREFIX)
 async def root():
     """Root endpoint."""
     return {
-        "message": "Welcome to Smart Expense Manager API",
+        "message": "Welcome to Tracksy.AI API",
         "docs": "/api/docs",
         "health": "/health",
     }

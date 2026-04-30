@@ -6,7 +6,7 @@ Main entry point for all API routes
 from fastapi import APIRouter
 
 # Import route modules
-from . import auth, categories, expenses, transactions, analytics, reports
+from . import auth, categories, expenses, transactions, analytics, reports, search, calendar
 
 router = APIRouter()
 
@@ -17,6 +17,8 @@ router.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
 router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 router.include_router(reports.router, prefix="/reports", tags=["reports"])
+router.include_router(search.router, prefix="/search", tags=["search"])
+router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 
 
 @router.get("/", tags=["health"])

@@ -1,4 +1,4 @@
-# Smart Personal Expense Manager - System Architecture
+# Tracksy.AI - System Architecture
 
 **Version:** 1.0  
 **Date:** 2026-04-29  

@@ -1,6 +1,4 @@
 import React, { useState } from 'react'
-import { useAuth } from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
 import { ExpenseForm } from '../components/Expenses/ExpenseForm'
 import { ExpenseList } from '../components/Expenses/ExpenseList'
 import { ExpenseSummary } from '../components/Dashboard/ExpenseSummary'
@@ -8,109 +6,80 @@ import { TransactionForm } from '../components/Transactions/TransactionForm'
 import { TransactionList } from '../components/Transactions/TransactionList'
 import { TransactionSummary } from '../components/Dashboard/TransactionSummary'
 import { SpendingTrendChart } from '../components/Charts/SpendingTrendChart'
+import { AppShell } from '../components/Layout/AppShell'
 
 type FormMode = null | 'cash-expense' | 'digital-expense' | 'borrowed' | 'lent'
 
 export const DashboardPage: React.FC = () => {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
   const [formMode, setFormMode] = useState<FormMode>(null)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">
-                💰 Smart Expense Manager
-              </h1>
-              <button onClick={() => navigate('/')} className="text-blue-600 font-semibold">
-                Dashboard
-              </button>
-              <button onClick={() => navigate('/analytics')} className="text-gray-600 hover:text-gray-900">
-                Analytics
-              </button>
-              <button onClick={() => navigate('/reports')} className="text-gray-600 hover:text-gray-900">
-                Reports
-              </button>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">
-                {user?.full_name || user?.email}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <AppShell>
+      <div className="space-y-10">
+        <section>
+          <h1 className="text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-100">
+            Dashboard
+          </h1>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            A clear view of your spending, cash flow, and pending transactions.
+          </p>
+        </section>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         {/* Expense Summary */}
-        <section className="mb-12">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">📊 Expense Summary</h2>
+        <section>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Expense Summary</h2>
           <ExpenseSummary />
         </section>
 
         {/* Spending Trend */}
-        <section className="mb-12">
+        <section>
           <SpendingTrendChart />
         </section>
 
         {/* Transaction Summary */}
-        <section className="mb-12">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">🤝 Borrowed/Lent Summary</h2>
+        <section>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Borrowed/Lent Summary
+          </h2>
           <TransactionSummary />
         </section>
 
         {/* Quick Actions */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">⚡ Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-wrap">
+        <section>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Quick Actions</h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <button
               onClick={() => setFormMode('cash-expense')}
-              className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+              className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200 dark:focus:ring-emerald-950"
             >
-              💵 Cash Expense
+              Cash Expense
             </button>
             <button
               onClick={() => setFormMode('digital-expense')}
-              className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-950"
             >
-              📱 Digital Expense
+              Digital Expense
             </button>
             <button
               onClick={() => setFormMode('borrowed')}
-              className="px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+              className="rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-200 dark:focus:ring-red-950"
             >
-              🏦 Borrowed
+              Borrowed
             </button>
             <button
               onClick={() => setFormMode('lent')}
-              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+              className="rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-300 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white dark:focus:ring-gray-700"
             >
-              🤝 Lent
+              Lent
             </button>
           </div>
         </section>
 
         {/* Forms */}
         {formMode && (
-          <div className="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-950 dark:text-gray-100">
                 {formMode === 'cash-expense' && 'Add Cash Expense'}
                 {formMode === 'digital-expense' && 'Add Digital Expense'}
                 {formMode === 'borrowed' && 'I Borrowed Money'}
@@ -118,7 +87,7 @@ export const DashboardPage: React.FC = () => {
               </h3>
               <button
                 onClick={() => setFormMode(null)}
-                className="text-gray-500 hover:text-gray-700 text-xl"
+                className="rounded-lg px-2 text-xl text-gray-500 transition hover:bg-white hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
               >
                 ✕
               </button>
@@ -141,18 +110,20 @@ export const DashboardPage: React.FC = () => {
         )}
 
         {/* Recent Data */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">📝 Recent Expenses</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Expenses</h2>
             <ExpenseList />
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">🔄 Pending Transactions</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Pending Transactions
+            </h2>
             <TransactionList status="PENDING" />
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }

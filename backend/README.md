@@ -1,4 +1,4 @@
-# Backend - Smart Expense Manager
+# Backend - Tracksy.AI
 
 FastAPI + SQLAlchemy + PostgreSQL (Supabase)
 

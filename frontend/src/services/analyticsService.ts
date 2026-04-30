@@ -8,7 +8,6 @@ export interface DashboardOverview {
   }
   month: string
   breakdown: {
-    categories: CategoryBreakdown[]
     daily: DailyBreakdown[]
     type: TypeBreakdown
     payment_methods: PaymentMethodBreakdown[]
@@ -17,16 +16,6 @@ export interface DashboardOverview {
     last_6_months: MonthData[]
     spending_trend: SpendingTrend
   }
-  top_categories: TopCategory[]
-}
-
-export interface CategoryBreakdown {
-  name: string
-  icon: string
-  color: string
-  amount: number
-  count: number
-  percentage: number
 }
 
 export interface DailyBreakdown {
@@ -61,13 +50,6 @@ export interface SpendingTrend {
   previous_average?: number
 }
 
-export interface TopCategory {
-  name: string
-  icon: string
-  total: number
-  count: number
-}
-
 class AnalyticsService {
   async getDashboardOverview() {
     const response = await api.get<{ status: string; data: DashboardOverview }>('/analytics/dashboard')
@@ -81,16 +63,6 @@ class AnalyticsService {
     }>('/analytics/trends/spending', {
       params: { months },
     })
-    return response.data.data
-  }
-
-  async getCategoryBreakdown(year?: number, month?: number) {
-    const response = await api.get<{ status: string; data: CategoryBreakdown[] }>(
-      '/analytics/breakdown/category',
-      {
-        params: { year, month },
-      },
-    )
     return response.data.data
   }
 
@@ -124,15 +96,6 @@ class AnalyticsService {
     return response.data.data
   }
 
-  async getTopCategories(limit: number = 5) {
-    const response = await api.get<{ status: string; data: TopCategory[] }>(
-      '/analytics/top-categories',
-      {
-        params: { limit },
-      },
-    )
-    return response.data.data
-  }
 }
 
 export default new AnalyticsService()
