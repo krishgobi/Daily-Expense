@@ -4,13 +4,13 @@ Category Routes
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.database.connection import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user_id
 from app.schemas import CategoryCreate, CategoryResponse
 from app.services.category_service import CategoryService
 from app.exceptions import AppException
-from app.models import User
 
 router = APIRouter()
 
@@ -18,12 +18,13 @@ router = APIRouter()
 @router.post("", response_model=dict, tags=["categories"])
 async def create_category(
     category_data: CategoryCreate,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Create a new category."""
     try:
-        category = CategoryService.create_category(db, current_user.id, category_data)
+        user_uuid = UUID(user_id)
+        category = CategoryService.create_category(db, user_uuid, category_data)
         return {
             "status": "success",
             "data": CategoryResponse.from_orm(category),
@@ -37,12 +38,13 @@ async def create_category(
 
 @router.get("", response_model=dict, tags=["categories"])
 async def list_categories(
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get all categories for current user."""
     try:
-        categories = CategoryService.get_user_categories(db, current_user.id)
+        user_uuid = UUID(user_id)
+        categories = CategoryService.get_user_categories(db, user_uuid)
         return {
             "status": "success",
             "data": [CategoryResponse.from_orm(c) for c in categories],
@@ -55,13 +57,13 @@ async def list_categories(
 @router.get("/{category_id}", response_model=dict, tags=["categories"])
 async def get_category(
     category_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get a specific category."""
     try:
-        from uuid import UUID
-        category = CategoryService.get_category(db, current_user.id, UUID(category_id))
+        user_uuid = UUID(user_id)
+        category = CategoryService.get_category(db, user_uuid, UUID(category_id))
         return {
             "status": "success",
             "data": CategoryResponse.from_orm(category),
@@ -77,14 +79,14 @@ async def get_category(
 async def update_category(
     category_id: str,
     category_data: CategoryCreate,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Update a category."""
     try:
-        from uuid import UUID
+        user_uuid = UUID(user_id)
         update_dict = category_data.dict(exclude_unset=True)
-        category = CategoryService.update_category(db, current_user.id, UUID(category_id), update_dict)
+        category = CategoryService.update_category(db, user_uuid, UUID(category_id), update_dict)
         return {
             "status": "success",
             "data": CategoryResponse.from_orm(category),
@@ -99,13 +101,13 @@ async def update_category(
 @router.delete("/{category_id}", response_model=dict, tags=["categories"])
 async def delete_category(
     category_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Delete a category."""
     try:
-        from uuid import UUID
-        result = CategoryService.delete_category(db, current_user.id, UUID(category_id))
+        user_uuid = UUID(user_id)
+        result = CategoryService.delete_category(db, user_uuid, UUID(category_id))
         return {
             "status": "success",
             "data": result,

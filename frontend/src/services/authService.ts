@@ -1,10 +1,13 @@
 import { supabase } from './supabaseClient'
+import api from './api'
 
 export interface User {
   id: string
   email: string
   full_name: string
   created_at?: string
+  currency_code?: string
+  timezone?: string
 }
 
 export interface AuthResponse {
@@ -13,39 +16,26 @@ export interface AuthResponse {
 }
 
 class AuthService {
-  private async findProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, created_at')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (error) {
-      throw error
+  /**
+   * Fetch user profile from backend API
+   * The backend will query the Supabase database using the authenticated user ID from JWT
+   */
+  private async fetchUserProfile(): Promise<User> {
+    try {
+      const response = await api.get('/auth/me')
+      const userData = response.data.data
+      return {
+        id: userData.id,
+        email: userData.email,
+        full_name: userData.full_name,
+        created_at: userData.created_at,
+        currency_code: userData.currency_code,
+        timezone: userData.timezone,
+      }
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error)
+      throw new Error('Could not fetch user profile')
     }
-
-    return data
-  }
-
-  private async createProfile(userId: string, fullName: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert({
-        id: userId,
-        full_name: fullName,
-      })
-      .select('id, full_name, created_at')
-      .maybeSingle()
-
-    if (error) {
-      throw error
-    }
-
-    if (!data) {
-      throw new Error('Profile could not be created.')
-    }
-
-    return data
   }
 
   async register(email: string, password: string, fullName: string): Promise<AuthResponse> {
@@ -78,10 +68,17 @@ class AuthService {
       }
     }
 
-    let profile = await this.findProfile(authUser.id)
-
-    if (!profile) {
-      profile = await this.createProfile(authUser.id, normalizedFullName)
+    // Fetch user profile from backend (which creates it via trigger if needed)
+    let profile
+    try {
+      profile = await this.fetchUserProfile()
+    } catch (error) {
+      // Profile creation might be pending if email confirmation is enabled
+      profile = {
+        id: authUser.id,
+        email: authUser.email ?? normalizedEmail,
+        full_name: normalizedFullName,
+      }
     }
 
     const user = {
@@ -89,6 +86,8 @@ class AuthService {
       email: authUser.email ?? normalizedEmail,
       full_name: profile.full_name,
       created_at: profile.created_at,
+      currency_code: profile.currency_code,
+      timezone: profile.timezone,
     }
 
     localStorage.setItem('user', JSON.stringify(user))
@@ -113,16 +112,21 @@ class AuthService {
       throw new Error('Supabase did not return a user for this login request.')
     }
 
-    let profile = await this.findProfile(authUser.id)
-
-    if (!profile) {
-      const fallbackFullName =
-        typeof authUser.user_metadata?.full_name === 'string' &&
-        authUser.user_metadata.full_name.trim()
-          ? authUser.user_metadata.full_name.trim()
-          : 'New User'
-
-      profile = await this.createProfile(authUser.id, fallbackFullName)
+    // Fetch user profile from backend
+    let profile
+    try {
+      profile = await this.fetchUserProfile()
+    } catch (error) {
+      // If profile fetch fails, use fallback
+      profile = {
+        id: authUser.id,
+        email: authUser.email ?? normalizedEmail,
+        full_name:
+          typeof authUser.user_metadata?.full_name === 'string' &&
+          authUser.user_metadata.full_name.trim()
+            ? authUser.user_metadata.full_name.trim()
+            : 'New User',
+      }
     }
 
     const user = {
@@ -130,6 +134,8 @@ class AuthService {
       email: authUser.email ?? normalizedEmail,
       full_name: profile.full_name,
       created_at: profile.created_at,
+      currency_code: profile.currency_code,
+      timezone: profile.timezone,
     }
 
     localStorage.setItem('user', JSON.stringify(user))
@@ -151,16 +157,21 @@ class AuthService {
       return null
     }
 
-    let profile = await this.findProfile(authUser.id)
-
-    if (!profile) {
-      const fallbackFullName =
-        typeof authUser.user_metadata?.full_name === 'string' &&
-        authUser.user_metadata.full_name.trim()
-          ? authUser.user_metadata.full_name.trim()
-          : 'New User'
-
-      profile = await this.createProfile(authUser.id, fallbackFullName)
+    // Fetch user profile from backend
+    let profile
+    try {
+      profile = await this.fetchUserProfile()
+    } catch (error) {
+      // If profile fetch fails, use fallback
+      profile = {
+        id: authUser.id,
+        email: authUser.email ?? '',
+        full_name:
+          typeof authUser.user_metadata?.full_name === 'string' &&
+          authUser.user_metadata.full_name.trim()
+            ? authUser.user_metadata.full_name.trim()
+            : 'New User',
+      }
     }
 
     const user = {
@@ -168,6 +179,8 @@ class AuthService {
       email: authUser.email ?? '',
       full_name: profile.full_name,
       created_at: profile.created_at,
+      currency_code: profile.currency_code,
+      timezone: profile.timezone,
     }
 
     localStorage.setItem('user', JSON.stringify(user))
@@ -175,7 +188,7 @@ class AuthService {
     return user
   }
 
-  async updateProfile(updates: Partial<User>) {
+  async updateProfile(updates: Partial<User>): Promise<User> {
     const {
       data: { user: authUser },
       error: authError,
@@ -189,46 +202,27 @@ class AuthService {
       throw new Error('You must be signed in to update your profile.')
     }
 
-    const nextFullName = updates.full_name?.trim()
+    // Send update request to backend API
+    try {
+      const response = await api.put('/auth/profile', updates)
+      const updatedProfile = response.data.data
 
-    if (!nextFullName) {
-      throw new Error('Full name is required.')
-    }
-
-    const { data: updatedProfile, error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        full_name: nextFullName,
-      })
-      .eq('id', authUser.id)
-      .select('id, full_name, created_at')
-      .maybeSingle()
-
-    if (updateError) {
-      throw updateError
-    }
-
-    let profile = updatedProfile
-
-    if (!profile) {
-      const existingProfile = await this.findProfile(authUser.id)
-      if (existingProfile) {
-        throw new Error('Profile update was blocked. Please apply the profiles update RLS policy.')
+      const user = {
+        id: updatedProfile.id,
+        email: updatedProfile.email,
+        full_name: updatedProfile.full_name,
+        created_at: updatedProfile.created_at,
+        currency_code: updatedProfile.currency_code,
+        timezone: updatedProfile.timezone,
       }
 
-      profile = await this.createProfile(authUser.id, nextFullName)
+      localStorage.setItem('user', JSON.stringify(user))
+
+      return user
+    } catch (error) {
+      console.error('Failed to update profile:', error)
+      throw new Error('Failed to update profile')
     }
-
-    const user = {
-      id: authUser.id,
-      email: authUser.email ?? '',
-      full_name: profile.full_name,
-      created_at: profile.created_at,
-    }
-
-    localStorage.setItem('user', JSON.stringify(user))
-
-    return user
   }
 
   async logout() {

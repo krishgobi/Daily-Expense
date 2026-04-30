@@ -1,103 +1,126 @@
 """
-Authentication Routes
+Authentication Routes (Supabase-based)
+Handles user profile management and current user info
+Auth itself is handled entirely by Supabase
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
+from datetime import datetime
 
 from app.database.connection import get_db
-from app.dependencies import get_current_user
-from app.schemas import (
-    UserCreate,
-    UserResponse,
-    LoginRequest,
-    TokenResponse,
-    UserUpdate,
-)
-from app.services.auth_service import AuthService
+from app.dependencies import get_current_user_id
+from app.schemas import UserUpdate, UserResponse
 from app.exceptions import AuthException
 from app.models import User
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=dict, tags=["auth"])
-async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user."""
-    try:
-        result = AuthService.register_user(db, user_data)
-        return {
-            "status": "success",
-            "data": result,
-            "message": "User registered successfully",
-        }
-    except AuthException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/login", response_model=dict, tags=["auth"])
-async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
-    """Login user with email and password."""
-    try:
-        result = AuthService.login_user(db, credentials.email, credentials.password)
-        return {
-            "status": "success",
-            "data": result,
-            "message": "Login successful",
-        }
-    except AuthException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/refresh", response_model=dict, tags=["auth"])
-async def refresh(refresh_token: dict):
-    """Refresh access token."""
-    try:
-        token = refresh_token.get("refresh_token")
-        if not token:
-            raise AuthException("Refresh token required")
-
-        result = AuthService.refresh_token(token)
-        return {
-            "status": "success",
-            "data": result,
-            "message": "Token refreshed successfully",
-        }
-    except AuthException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/me", response_model=dict, tags=["auth"])
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    """Get current user information."""
+async def get_current_user_info(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """
+    Get current authenticated user information.
+    
+    Retrieves user profile from database using the user ID from Supabase JWT token.
+    
+    Returns:
+        Current user profile information
+        
+    Raises:
+        HTTPException 404: If user profile not found
+    """
+    try:
+        # Convert string user_id to UUID
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format",
+        )
+    
+    # Query user profile from database
+    user = db.query(User).filter(User.id == user_uuid).first()
+    
+    if not user:
+        # User not found - they may be logging in for the first time
+        # Create a profile for them
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User profile not found. Please contact support.",
+        )
+    
     return {
         "status": "success",
-        "data": UserResponse.from_orm(current_user),
-        "message": "User information retrieved",
+        "data": UserResponse.from_orm(user),
     }
 
 
 @router.put("/profile", response_model=dict, tags=["auth"])
 async def update_profile(
     update_data: UserUpdate,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """Update user profile."""
+    """
+    Update current user profile.
+    
+    Allows user to update their profile information (full_name, currency_code, timezone).
+    
+    Args:
+        update_data: Profile update data
+        user_id: Current user ID (from Supabase JWT)
+        db: Database session
+        
+    Returns:
+        Updated user profile
+        
+    Raises:
+        HTTPException 404: If user profile not found
+        HTTPException 400: If invalid data provided
+    """
     try:
-        updated_user = AuthService.update_user_profile(db, current_user.id, update_data)
-        return {
-            "status": "success",
-            "data": UserResponse.from_orm(updated_user),
-            "message": "Profile updated successfully",
-        }
-    except AuthException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format",
+        )
+    
+    # Query user profile
+    user = db.query(User).filter(User.id == user_uuid).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User profile not found",
+        )
+    
+    # Update only provided fields
+    update_dict = update_data.dict(exclude_unset=True)
+    for key, value in update_dict.items():
+        if value is not None:
+            setattr(user, key, value)
+    
+    user.updated_at = datetime.utcnow()
+    
+    try:
+        db.commit()
+        db.refresh(user)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update profile",
+        )
+    
+    return {
+        "status": "success",
+        "data": UserResponse.from_orm(user),
+        "message": "Profile updated successfully",
+    }
+

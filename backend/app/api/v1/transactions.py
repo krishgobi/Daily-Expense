@@ -8,7 +8,7 @@ from uuid import UUID
 from datetime import date
 
 from app.database.connection import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user_id
 from app.schemas import (
     TransactionCreate,
     TransactionUpdate,
@@ -17,7 +17,6 @@ from app.schemas import (
 )
 from app.services.transaction_service import TransactionService
 from app.exceptions import AppException
-from app.models import User
 
 router = APIRouter()
 
@@ -25,12 +24,13 @@ router = APIRouter()
 @router.post("", response_model=dict, tags=["transactions"])
 async def create_transaction(
     transaction_data: TransactionCreate,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Create a new transaction (borrowed or lent)."""
     try:
-        transaction = TransactionService.create_transaction(db, current_user.id, transaction_data)
+        user_uuid = UUID(user_id)
+        transaction = TransactionService.create_transaction(db, user_uuid, transaction_data)
         return {
             "status": "success",
             "data": TransactionResponse.from_orm(transaction),
@@ -49,14 +49,15 @@ async def list_transactions(
     person_name: str = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """List transactions with filters."""
     try:
+        user_uuid = UUID(user_id)
         transactions, total = TransactionService.list_transactions(
             db,
-            current_user.id,
+            user_uuid,
             transaction_type,
             status,
             person_name,
@@ -80,12 +81,13 @@ async def list_transactions(
 @router.get("/{transaction_id}", response_model=dict, tags=["transactions"])
 async def get_transaction(
     transaction_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get a specific transaction."""
     try:
-        transaction = TransactionService.get_transaction(db, current_user.id, UUID(transaction_id))
+        user_uuid = UUID(user_id)
+        transaction = TransactionService.get_transaction(db, user_uuid, UUID(transaction_id))
         return {
             "status": "success",
             "data": TransactionResponse.from_orm(transaction),
@@ -101,13 +103,14 @@ async def get_transaction(
 async def update_transaction(
     transaction_id: str,
     transaction_data: TransactionUpdate,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Update a transaction."""
     try:
+        user_uuid = UUID(user_id)
         transaction = TransactionService.update_transaction(
-            db, current_user.id, UUID(transaction_id), transaction_data
+            db, user_uuid, UUID(transaction_id), transaction_data
         )
         return {
             "status": "success",
@@ -124,14 +127,15 @@ async def update_transaction(
 async def complete_transaction(
     transaction_id: str,
     request_data: TransactionCompleteRequest,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Mark a transaction as completed."""
     try:
+        user_uuid = UUID(user_id)
         transaction = TransactionService.complete_transaction(
             db,
-            current_user.id,
+            user_uuid,
             UUID(transaction_id),
             request_data.actual_return_date,
         )
@@ -149,12 +153,13 @@ async def complete_transaction(
 @router.delete("/{transaction_id}", response_model=dict, tags=["transactions"])
 async def delete_transaction(
     transaction_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Delete a transaction."""
     try:
-        result = TransactionService.delete_transaction(db, current_user.id, UUID(transaction_id))
+        user_uuid = UUID(user_id)
+        result = TransactionService.delete_transaction(db, user_uuid, UUID(transaction_id))
         return {
             "status": "success",
             "data": result,
@@ -168,12 +173,13 @@ async def delete_transaction(
 
 @router.get("/summary/pending-repayments", response_model=dict, tags=["transactions"])
 async def get_pending_repayments(
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get all pending money I need to pay (BORROWED)."""
     try:
-        transactions = TransactionService.get_pending_repayments(db, current_user.id)
+        user_uuid = UUID(user_id)
+        transactions = TransactionService.get_pending_repayments(db, user_uuid)
         return {
             "status": "success",
             "data": [TransactionResponse.from_orm(t) for t in transactions],
@@ -185,12 +191,13 @@ async def get_pending_repayments(
 
 @router.get("/summary/pending-collections", response_model=dict, tags=["transactions"])
 async def get_pending_collections(
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get all pending money I need to receive (LENT)."""
     try:
-        transactions = TransactionService.get_pending_collections(db, current_user.id)
+        user_uuid = UUID(user_id)
+        transactions = TransactionService.get_pending_collections(db, user_uuid)
         return {
             "status": "success",
             "data": [TransactionResponse.from_orm(t) for t in transactions],

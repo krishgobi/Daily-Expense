@@ -9,7 +9,7 @@ from uuid import UUID
 from datetime import datetime
 
 from app.database.connection import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user_id
 from app.schemas import (
     CashExpenseCreate,
     DigitalExpenseCreate,
@@ -18,7 +18,6 @@ from app.schemas import (
 )
 from app.services.expense_service import ExpenseService
 from app.exceptions import AppException
-from app.models import User
 
 router = APIRouter()
 
@@ -27,12 +26,13 @@ router = APIRouter()
 async def create_cash_expense(
     expense_data: CashExpenseCreate,
     category_id: UUID = Query(None),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Create a cash expense."""
     try:
-        expense = ExpenseService.create_cash_expense(db, current_user.id, expense_data, category_id)
+        user_uuid = UUID(user_id)
+        expense = ExpenseService.create_cash_expense(db, user_uuid, expense_data, category_id)
         return {
             "status": "success",
             "data": ExpenseResponse.from_orm(expense),
@@ -48,12 +48,13 @@ async def create_cash_expense(
 async def create_digital_expense(
     expense_data: DigitalExpenseCreate,
     category_id: UUID = Query(None),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Create a digital expense."""
     try:
-        expense = ExpenseService.create_digital_expense(db, current_user.id, expense_data, category_id)
+        user_uuid = UUID(user_id)
+        expense = ExpenseService.create_digital_expense(db, user_uuid, expense_data, category_id)
         return {
             "status": "success",
             "data": ExpenseResponse.from_orm(expense),
@@ -73,14 +74,15 @@ async def list_expenses(
     date_to: date = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """List expenses with filters."""
     try:
+        user_uuid = UUID(user_id)
         expenses, total = ExpenseService.list_expenses(
             db,
-            current_user.id,
+            user_uuid,
             expense_type,
             category_id,
             date_from,
@@ -105,12 +107,13 @@ async def list_expenses(
 @router.get("/{expense_id}", response_model=dict, tags=["expenses"])
 async def get_expense(
     expense_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get a specific expense."""
     try:
-        expense = ExpenseService.get_expense(db, current_user.id, UUID(expense_id))
+        user_uuid = UUID(user_id)
+        expense = ExpenseService.get_expense(db, user_uuid, UUID(expense_id))
         return {
             "status": "success",
             "data": ExpenseResponse.from_orm(expense),
@@ -126,12 +129,13 @@ async def get_expense(
 async def update_expense(
     expense_id: str,
     expense_data: ExpenseUpdate,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Update an expense."""
     try:
-        expense = ExpenseService.update_expense(db, current_user.id, UUID(expense_id), expense_data)
+        user_uuid = UUID(user_id)
+        expense = ExpenseService.update_expense(db, user_uuid, UUID(expense_id), expense_data)
         return {
             "status": "success",
             "data": ExpenseResponse.from_orm(expense),
@@ -146,12 +150,13 @@ async def update_expense(
 @router.delete("/{expense_id}", response_model=dict, tags=["expenses"])
 async def delete_expense(
     expense_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Delete an expense."""
     try:
-        result = ExpenseService.delete_expense(db, current_user.id, UUID(expense_id))
+        user_uuid = UUID(user_id)
+        result = ExpenseService.delete_expense(db, user_uuid, UUID(expense_id))
         return {
             "status": "success",
             "data": result,
@@ -165,13 +170,14 @@ async def delete_expense(
 
 @router.get("/summary/today", response_model=dict, tags=["expenses"])
 async def get_today_summary(
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get today's expense summary."""
     try:
+        user_uuid = UUID(user_id)
         today = datetime.utcnow().date()
-        total = ExpenseService.get_daily_total(db, current_user.id, today)
+        total = ExpenseService.get_daily_total(db, user_uuid, today)
         return {
             "status": "success",
             "data": {"date": today, "total": total},
@@ -183,12 +189,13 @@ async def get_today_summary(
 
 @router.get("/summary/week", response_model=dict, tags=["expenses"])
 async def get_week_summary(
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get this week's expense summary."""
     try:
-        total, count = ExpenseService.get_weekly_total(db, current_user.id)
+        user_uuid = UUID(user_id)
+        total, count = ExpenseService.get_weekly_total(db, user_uuid)
         return {
             "status": "success",
             "data": {"total": total, "count": count},
@@ -202,17 +209,18 @@ async def get_week_summary(
 async def get_month_summary(
     year: int = Query(None),
     month: int = Query(None),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get month's expense summary."""
     try:
+        user_uuid = UUID(user_id)
         if year is None or month is None:
             today = datetime.utcnow().date()
             year = today.year
             month = today.month
 
-        total, count = ExpenseService.get_monthly_total(db, current_user.id, year, month)
+        total, count = ExpenseService.get_monthly_total(db, user_uuid, year, month)
         return {
             "status": "success",
             "data": {"year": year, "month": month, "total": total, "count": count},

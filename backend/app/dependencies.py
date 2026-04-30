@@ -4,56 +4,62 @@ Dependency injection for routes
 """
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer
-from sqlalchemy.orm import Session
-from uuid import UUID
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt
 
-from app.database.connection import get_db
-from app.utils.jwt import decode_token
-from app.models import User
+from app.utils.supabase_jwt import get_supabase_validator
 from app.config import settings
 
 security = HTTPBearer()
 
 
-def get_current_user(
-    credentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    """Get current authenticated user from JWT token."""
+def get_current_user_id(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
+    """
+    Validate Supabase JWT token and return user ID.
+    
+    This dependency:
+    1. Extracts the JWT from Authorization header
+    2. Validates signature using Supabase JWKS
+    3. Verifies expiration and issuer
+    4. Returns the user ID (sub claim)
+    
+    Args:
+        credentials: HTTP Bearer token
+        
+    Returns:
+        User ID (UUID string) from token
+        
+    Raises:
+        HTTPException: If token is invalid, expired, or missing required claims
+    """
     token = credentials.credentials
 
-    payload = decode_token(token)
-
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user_id = payload.get("user_id")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
     try:
-        user_id_uuid = UUID(user_id)
-    except ValueError:
+        validator = get_supabase_validator()
+        user_id = validator.extract_user_id(token)
+        return user_id
+        
+    except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user ID in token",
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-
-    user = db.query(User).filter(User.id == user_id_uuid).first()
-
-    if not user:
+    except jwt.InvalidTokenError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
+            detail="Invalid or malformed token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return user
+
+# Alias for backward compatibility (routes can use either)
+get_current_user = get_current_user_id

@@ -11,14 +11,14 @@ import tempfile
 import os
 
 from app.database.connection import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user_id
+from uuid import UUID
 from app.schemas import ReportCreate, ReportResponse
 from app.services.report_service import ReportService
 from app.reports.pdf_generator import PDFReportGenerator
 from app.reports.excel_generator import ExcelReportGenerator
 from app.reports.word_generator import WordReportGenerator
 from app.exceptions import AppException
-from app.models import User
 
 router = APIRouter()
 
@@ -26,15 +26,16 @@ router = APIRouter()
 @router.post("/generate", response_model=dict, tags=["reports"])
 async def generate_report(
     report_data: ReportCreate,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Generate a report in the specified format."""
     try:
+        user_uuid = UUID(user_id)
         # Create report record
         report = ReportService.create_report(
             db,
-            current_user.id,
+            user_uuid,
             report_data.report_type,
             report_data.period_start,
             report_data.period_end,
@@ -43,7 +44,7 @@ async def generate_report(
         # Gather data
         data = ReportService.gather_report_data(
             db,
-            current_user.id,
+            user_uuid,
             report_data.period_start,
             report_data.period_end,
         )
@@ -95,12 +96,13 @@ async def generate_report(
 async def list_reports(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """List all reports for current user."""
     try:
-        reports, total = ReportService.get_user_reports(db, current_user.id, limit, offset)
+        user_uuid = UUID(user_id)
+        reports, total = ReportService.get_user_reports(db, user_uuid, limit, offset)
         return {
             "status": "success",
             "data": [ReportResponse.from_orm(r) for r in reports],
@@ -118,12 +120,13 @@ async def list_reports(
 @router.get("/{report_id}", response_model=dict, tags=["reports"])
 async def get_report(
     report_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get a specific report."""
     try:
-        report = ReportService.get_report(db, current_user.id, UUID(report_id))
+        user_uuid = UUID(user_id)
+        report = ReportService.get_report(db, user_uuid, UUID(report_id))
         return {
             "status": "success",
             "data": ReportResponse.from_orm(report),
@@ -138,12 +141,13 @@ async def get_report(
 @router.get("/{report_id}/download", tags=["reports"])
 async def download_report(
     report_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Download a generated report."""
     try:
-        report = ReportService.get_report(db, current_user.id, UUID(report_id))
+        user_uuid = UUID(user_id)
+        report = ReportService.get_report(db, user_uuid, UUID(report_id))
 
         if not report.file_path or not os.path.exists(report.file_path):
             raise HTTPException(status_code=404, detail="Report file not found")
@@ -178,12 +182,13 @@ async def download_report(
 @router.delete("/{report_id}", response_model=dict, tags=["reports"])
 async def delete_report(
     report_id: str,
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Delete a report."""
     try:
-        result = ReportService.delete_report(db, current_user.id, UUID(report_id))
+        user_uuid = UUID(user_id)
+        result = ReportService.delete_report(db, user_uuid, UUID(report_id))
         return {
             "status": "success",
             "data": result,

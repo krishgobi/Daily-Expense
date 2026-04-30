@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from datetime import date
 
 from app.database.connection import get_db
-from app.dependencies import get_current_user
-from app.models import User
+from app.dependencies import get_current_user_id
+from uuid import UUID
 from app.services.search_service import SearchService
 
 router = APIRouter()
@@ -24,11 +24,12 @@ async def search_expenses(
     date_to: date = Query(None, description="End date for filtering"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Search expenses with filters."""
     try:
+        user_uuid = UUID(user_id)
         from uuid import UUID
         category_id_uuid = UUID(category_id) if category_id else None
     except ValueError:
@@ -37,7 +38,7 @@ async def search_expenses(
     try:
         expenses, total_count = SearchService.search_expenses(
             db=db,
-            user_id=current_user.id,
+            user_id=user_uuid,
             query=q,
             expense_type=expense_type,
             category_id=category_id_uuid,
@@ -82,14 +83,15 @@ async def search_transactions(
     date_to: date = Query(None, description="End date for filtering"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Search transactions with filters."""
     try:
+        user_uuid = UUID(user_id)
         transactions, total_count = SearchService.search_transactions(
             db=db,
-            user_id=current_user.id,
+            user_id=user_uuid,
             query=q,
             transaction_type=transaction_type,
             status=status,
@@ -129,14 +131,15 @@ async def search_transactions(
 async def global_search(
     q: str = Query(..., min_length=1, description="Search query"),
     limit: int = Query(10, ge=1, le=50),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Perform global search across expenses, transactions, and categories."""
     try:
+        user_uuid = UUID(user_id)
         result = SearchService.global_search(
             db=db,
-            user_id=current_user.id,
+            user_id=user_uuid,
             query=q,
             limit=limit,
         )
@@ -181,14 +184,15 @@ async def global_search(
 @router.get("/recent", tags=["search"])
 async def get_recent_searches(
     limit: int = Query(5, ge=1, le=10),
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get recent search terms."""
     try:
+        user_uuid = UUID(user_id)
         recent = SearchService.get_recent_searches(
             db=db,
-            user_id=current_user.id,
+            user_id=user_uuid,
             limit=limit,
         )
 
