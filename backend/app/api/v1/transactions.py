@@ -209,13 +209,14 @@ async def get_pending_collections(
 
 @router.get("/summary/overdue", response_model=dict, tags=["transactions"])
 async def get_overdue(
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get all overdue transactions."""
     try:
+        user_uuid = UUID(user_id)
         overdue_borrowed, overdue_lent = TransactionService.get_overdue_transactions(
-            db, current_user.id
+            db, user_uuid
         )
         return {
             "status": "success",
@@ -231,12 +232,13 @@ async def get_overdue(
 
 @router.get("/summary/overview", response_model=dict, tags=["transactions"])
 async def get_transactions_summary(
-    current_user: User = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     """Get summary of all transactions."""
     try:
-        summary = TransactionService.get_transactions_summary(db, current_user.id)
+        user_uuid = UUID(user_id)
+        summary = TransactionService.get_transactions_summary(db, user_uuid)
         return {
             "status": "success",
             "data": summary,
