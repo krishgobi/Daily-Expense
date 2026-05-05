@@ -5,12 +5,12 @@ fastapi==0.109.2
 uvicorn[standard]==0.27.0
 sqlalchemy==2.0.25
 psycopg2-binary==2.9.9
-numpy==1.26.4
+numpy==1.24.3
 alembic==1.13.1
 pydantic==2.6.4
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
-PyJWT==2.8.1
+PyJWT==2.12.1
 cryptography==42.0.2
 python-multipart==0.0.6
 httpx==0.25.2
