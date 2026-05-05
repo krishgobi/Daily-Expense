@@ -12,12 +12,12 @@ class Settings(BaseSettings):
     """Application Settings"""
 
     # Supabase
-    SUPABASE_URL: str
-    SUPABASE_KEY: str
-    SUPABASE_SERVICE_KEY: str
+    SUPABASE_URL: str = "https://placeholder.supabase.co"
+    SUPABASE_KEY: str = "placeholder-key"
+    SUPABASE_SERVICE_KEY: str = "placeholder-service-key"
 
     # JWT
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = "your-super-secret-jwt-key-change-in-production-min-32-chars-long-123456789"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
     JWT_REFRESH_EXPIRATION_DAYS: int = 7
