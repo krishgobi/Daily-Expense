@@ -1,9 +1,8 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Moon, Settings, Sun } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
 import logo from '../../assets/logo.svg'
 import { useAuth } from '../../context/AuthContext'
-import { useTheme } from '../../hooks/useTheme'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -19,7 +18,6 @@ const navItems = [
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const { user, logout } = useAuth()
-  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -46,16 +44,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               </div>
             </button>
 
-            <div className="flex items-center gap-2 lg:hidden">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:focus:ring-gray-700"
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
-            </div>
+
           </div>
 
           <nav className="flex flex-wrap items-center gap-2">
@@ -81,14 +70,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             <span className="max-w-48 truncate text-sm text-gray-600 dark:text-gray-300">
               {user?.full_name || user?.email}
             </span>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="hidden h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:focus:ring-gray-700 lg:inline-flex"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
+
             <button
               type="button"
               onClick={() => navigate('/profile')}

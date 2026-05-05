@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Camera, CheckCircle2, Loader2, Moon, Sun } from 'lucide-react'
+import { AlertCircle, Camera, CheckCircle2, Loader2 } from 'lucide-react'
 import logo from '../assets/logo.svg'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../hooks/useTheme'
 
 export const ProfileSettingsPage: React.FC = () => {
   const { user, updateProfile } = useAuth()
   const [fullName, setFullName] = useState(user?.full_name || '')
   const [profileImage, setProfileImage] = useState<string | null>(null)
-  const { theme, toggleTheme } = useTheme()
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -78,15 +76,6 @@ export const ProfileSettingsPage: React.FC = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400">Track expenses smarter</p>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:focus:ring-gray-700"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
           </header>
 
           <div className="mb-6">
