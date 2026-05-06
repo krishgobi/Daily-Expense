@@ -105,8 +105,23 @@ class ExpenseResponse(ExpenseBase):
     type: str
     category_id: Optional[UUID] = None
     payment_method: Optional[str] = None
+    media: Optional[List['MediaResponse']] = None
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ============ Media Schemas ============
+
+class MediaResponse(BaseModel):
+    id: UUID
+    file_name: str
+    file_path: str
+    file_type: str
+    file_size: int
+    uploaded_at: datetime
 
     class Config:
         from_attributes = True
@@ -142,6 +157,7 @@ class TransactionResponse(TransactionBase):
     id: UUID
     user_id: UUID
     status: str
+    media: Optional[List['MediaResponse']] = None
     actual_return_date: Optional[date] = None
     created_at: datetime
     updated_at: datetime

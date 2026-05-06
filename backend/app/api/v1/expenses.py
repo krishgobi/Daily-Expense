@@ -2,7 +2,7 @@
 Expense Routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
 from datetime import date
 from uuid import UUID
@@ -18,6 +18,8 @@ from app.schemas import (
 )
 from app.services.expense_service import ExpenseService
 from app.exceptions import AppException
+from app.utils.file_upload import save_upload_file, delete_file
+from app.models import ExpenseMedia
 
 router = APIRouter()
 
@@ -226,5 +228,99 @@ async def get_month_summary(
             "data": {"year": year, "month": month, "total": total, "count": count},
             "message": "Month summary retrieved",
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{expense_id}/upload-media", response_model=dict, tags=["expenses"])
+async def upload_expense_media(
+    expense_id: str,
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Upload media file (image/PDF/document) for an expense."""
+    try:
+        user_uuid = UUID(user_id)
+        expense_uuid = UUID(expense_id)
+        
+        # Verify expense belongs to user
+        expense = ExpenseService.get_expense(db, user_uuid, expense_uuid)
+        if not expense:
+            raise HTTPException(status_code=404, detail="Expense not found")
+        
+        # Save file
+        file_data = await save_upload_file(file, str(user_uuid), "expense")
+        
+        # Create media record in database
+        media = ExpenseMedia(
+            expense_id=expense_uuid,
+            file_name=file_data["file_name"],
+            file_path=file_data["file_path"],
+            file_type=file_data["file_type"],
+            file_size=file_data["file_size"],
+        )
+        db.add(media)
+        db.commit()
+        db.refresh(media)
+        
+        return {
+            "status": "success",
+            "data": {
+                "id": str(media.id),
+                "file_name": media.file_name,
+                "file_type": media.file_type,
+                "file_size": media.file_size,
+                "uploaded_at": media.uploaded_at.isoformat(),
+            },
+            "message": "Media uploaded successfully",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@router.delete("/{expense_id}/media/{media_id}", response_model=dict, tags=["expenses"])
+async def delete_expense_media(
+    expense_id: str,
+    media_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Delete media file from an expense."""
+    try:
+        user_uuid = UUID(user_id)
+        expense_uuid = UUID(expense_id)
+        media_uuid = UUID(media_id)
+        
+        # Verify expense belongs to user
+        expense = ExpenseService.get_expense(db, user_uuid, expense_uuid)
+        if not expense:
+            raise HTTPException(status_code=404, detail="Expense not found")
+        
+        # Get media record
+        media = db.query(ExpenseMedia).filter(
+            ExpenseMedia.id == media_uuid,
+            ExpenseMedia.expense_id == expense_uuid
+        ).first()
+        
+        if not media:
+            raise HTTPException(status_code=404, detail="Media not found")
+        
+        # Delete file from storage
+        delete_file(media.file_path)
+        
+        # Delete record from database
+        db.delete(media)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "data": None,
+            "message": "Media deleted successfully",
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

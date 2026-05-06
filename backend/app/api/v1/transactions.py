@@ -2,7 +2,7 @@
 Transaction Routes (Borrowed/Lent Money)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import date
@@ -17,6 +17,8 @@ from app.schemas import (
 )
 from app.services.transaction_service import TransactionService
 from app.exceptions import AppException
+from app.utils.file_upload import save_upload_file, delete_file
+from app.models import TransactionMedia
 
 router = APIRouter()
 
@@ -244,5 +246,99 @@ async def get_transactions_summary(
             "data": summary,
             "message": "Transaction summary retrieved",
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{transaction_id}/upload-media", response_model=dict, tags=["transactions"])
+async def upload_transaction_media(
+    transaction_id: str,
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Upload media file (image/PDF/document) for a transaction (borrowed/lent)."""
+    try:
+        user_uuid = UUID(user_id)
+        transaction_uuid = UUID(transaction_id)
+        
+        # Verify transaction belongs to user
+        transaction = TransactionService.get_transaction(db, user_uuid, transaction_uuid)
+        if not transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        # Save file
+        file_data = await save_upload_file(file, str(user_uuid), "transaction")
+        
+        # Create media record in database
+        media = TransactionMedia(
+            transaction_id=transaction_uuid,
+            file_name=file_data["file_name"],
+            file_path=file_data["file_path"],
+            file_type=file_data["file_type"],
+            file_size=file_data["file_size"],
+        )
+        db.add(media)
+        db.commit()
+        db.refresh(media)
+        
+        return {
+            "status": "success",
+            "data": {
+                "id": str(media.id),
+                "file_name": media.file_name,
+                "file_type": media.file_type,
+                "file_size": media.file_size,
+                "uploaded_at": media.uploaded_at.isoformat(),
+            },
+            "message": "Media uploaded successfully",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@router.delete("/{transaction_id}/media/{media_id}", response_model=dict, tags=["transactions"])
+async def delete_transaction_media(
+    transaction_id: str,
+    media_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Delete media file from a transaction."""
+    try:
+        user_uuid = UUID(user_id)
+        transaction_uuid = UUID(transaction_id)
+        media_uuid = UUID(media_id)
+        
+        # Verify transaction belongs to user
+        transaction = TransactionService.get_transaction(db, user_uuid, transaction_uuid)
+        if not transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        # Get media record
+        media = db.query(TransactionMedia).filter(
+            TransactionMedia.id == media_uuid,
+            TransactionMedia.transaction_id == transaction_uuid
+        ).first()
+        
+        if not media:
+            raise HTTPException(status_code=404, detail="Media not found")
+        
+        # Delete file from storage
+        delete_file(media.file_path)
+        
+        # Delete record from database
+        db.delete(media)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "data": None,
+            "message": "Media deleted successfully",
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
