@@ -249,7 +249,7 @@ async def upload_expense_media(
         if not expense:
             raise HTTPException(status_code=404, detail="Expense not found")
         
-        # Save file
+        # Save file to Supabase Storage
         file_data = await save_upload_file(file, str(user_uuid), "expense")
         
         # Create media record in database
@@ -257,6 +257,7 @@ async def upload_expense_media(
             expense_id=expense_uuid,
             file_name=file_data["file_name"],
             file_path=file_data["file_path"],
+            file_url=file_data.get("file_url"),  # Store Supabase public URL
             file_type=file_data["file_type"],
             file_size=file_data["file_size"],
         )
@@ -271,6 +272,7 @@ async def upload_expense_media(
                 "file_name": media.file_name,
                 "file_type": media.file_type,
                 "file_size": media.file_size,
+                "file_url": media.file_url,
                 "uploaded_at": media.uploaded_at.isoformat(),
             },
             "message": "Media uploaded successfully",
@@ -309,7 +311,7 @@ async def delete_expense_media(
             raise HTTPException(status_code=404, detail="Media not found")
         
         # Delete file from storage
-        delete_file(media.file_path)
+        delete_file(media.file_path, "expense-media")
         
         # Delete record from database
         db.delete(media)

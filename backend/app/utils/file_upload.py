@@ -9,6 +9,7 @@ from typing import Optional
 import aiofiles
 from datetime import datetime
 import uuid
+from app.utils.supabase_storage import upload_file_to_supabase, delete_file_from_supabase
 
 # File size limit (10MB)
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 10485760))
@@ -58,7 +59,7 @@ async def validate_file(file: UploadFile) -> bool:
 
 async def save_upload_file(file: UploadFile, user_id: str, entity_type: str) -> dict:
     """
-    Save uploaded file to local storage
+    Save uploaded file to Supabase Storage
     
     Args:
         file: Uploaded file
@@ -66,32 +67,32 @@ async def save_upload_file(file: UploadFile, user_id: str, entity_type: str) -> 
         entity_type: Type of entity (expense, transaction)
         
     Returns:
-        Dict with file_name, file_path, file_type, file_size
+        Dict with file_name, file_path, file_url, file_type, file_size
     """
     
     # Validate file
     await validate_file(file)
     
-    # Create directory structure
-    upload_dir = f"uploads/{user_id}/{entity_type}/{datetime.now().year}/{datetime.now().month}"
-    os.makedirs(upload_dir, exist_ok=True)
+    # Determine bucket name
+    bucket_name = f"{entity_type}-media"
     
-    # Generate unique filename
+    # Read file content
+    file_content = await file.read()
+    
+    # Upload to Supabase Storage
+    file_data = upload_file_to_supabase(
+        file_content=file_content,
+        file_name=file.filename,
+        bucket_name=bucket_name,
+        user_id=user_id,
+        entity_type=entity_type
+    )
+    
+    # Add file type
     file_ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
-    unique_filename = f"{uuid.uuid4()}.{file_ext}"
-    file_path = os.path.join(upload_dir, unique_filename)
+    file_data["file_type"] = get_file_type(file_ext)
     
-    # Save file
-    content = await file.read()
-    async with aiofiles.open(file_path, "wb") as f:
-        await f.write(content)
-    
-    return {
-        "file_name": file.filename,
-        "file_path": file_path,
-        "file_type": get_file_type(file_ext),
-        "file_size": len(content),
-    }
+    return file_data
 
 
 def get_file_type(extension: str) -> str:
@@ -107,13 +108,6 @@ def get_file_type(extension: str) -> str:
     return "OTHER"
 
 
-def delete_file(file_path: str) -> bool:
-    """Delete file from storage"""
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            return True
-        return False
-    except Exception as e:
-        print(f"Error deleting file: {e}")
-        return False
+def delete_file(file_path: str, bucket_name: str = "expense-media") -> bool:
+    """Delete file from Supabase Storage"""
+    return delete_file_from_supabase(file_path, bucket_name)

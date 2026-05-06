@@ -95,6 +95,7 @@ class ExpenseMedia(Base):
     expense_id = Column(UUID(as_uuid=True), ForeignKey("expenses.id", ondelete="CASCADE"), nullable=False)
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
+    file_url = Column(String(1000), nullable=True)  # Public URL from Supabase Storage
     file_type = Column(String(20))  # PDF, IMAGE, SCREENSHOT
     file_size = Column(Integer)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -141,6 +142,7 @@ class TransactionMedia(Base):
     transaction_id = Column(UUID(as_uuid=True), ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False)
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
+    file_url = Column(String(1000), nullable=True)  # Public URL from Supabase Storage
     file_type = Column(String(20))
     file_size = Column(Integer)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)

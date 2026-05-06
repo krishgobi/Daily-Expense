@@ -16,3 +16,4 @@ python-docx==0.8.11
 python-dateutil==2.8.2
 pytz==2023.3
 aiofiles==23.2.1
+supabase==2.3.4

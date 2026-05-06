@@ -267,7 +267,7 @@ async def upload_transaction_media(
         if not transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
         
-        # Save file
+        # Save file to Supabase Storage
         file_data = await save_upload_file(file, str(user_uuid), "transaction")
         
         # Create media record in database
@@ -275,6 +275,7 @@ async def upload_transaction_media(
             transaction_id=transaction_uuid,
             file_name=file_data["file_name"],
             file_path=file_data["file_path"],
+            file_url=file_data.get("file_url"),  # Store Supabase public URL
             file_type=file_data["file_type"],
             file_size=file_data["file_size"],
         )
@@ -289,6 +290,7 @@ async def upload_transaction_media(
                 "file_name": media.file_name,
                 "file_type": media.file_type,
                 "file_size": media.file_size,
+                "file_url": media.file_url,
                 "uploaded_at": media.uploaded_at.isoformat(),
             },
             "message": "Media uploaded successfully",
@@ -327,7 +329,7 @@ async def delete_transaction_media(
             raise HTTPException(status_code=404, detail="Media not found")
         
         # Delete file from storage
-        delete_file(media.file_path)
+        delete_file(media.file_path, "transaction-media")
         
         # Delete record from database
         db.delete(media)
