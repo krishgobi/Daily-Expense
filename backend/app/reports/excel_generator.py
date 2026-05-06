@@ -5,7 +5,6 @@ Generates Excel reports with multiple sheets
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils.dataframe import dataframe_to_rows
 from datetime import date
 import io
 
