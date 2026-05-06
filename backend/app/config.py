@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://daily-expense-mocha.vercel.app",
     ]
 
     # File Upload
