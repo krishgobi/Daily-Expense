@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = "https://placeholder.supabase.co"
     SUPABASE_KEY: str = "placeholder-key"
     SUPABASE_SERVICE_KEY: str = "placeholder-service-key"
+    SUPABASE_JWT_SECRET: str = ""
 
     # JWT
     JWT_SECRET_KEY: str = "your-super-secret-jwt-key-change-in-production-min-32-chars-long-123456789"

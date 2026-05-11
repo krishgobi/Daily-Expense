@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from app.config import Settings
 from app.api.v1 import router as api_v1_router
+from app.utils.schema_sync import run_schema_sync
 
 settings = Settings()
 
@@ -18,6 +19,11 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
     # Startup
     print("🚀 Starting Tracksy.AI API...")
+    try:
+        run_schema_sync()
+        print("✅ Database schema synced")
+    except Exception as exc:
+        print(f"⚠️ Database schema sync skipped: {exc}")
     yield
     # Shutdown
     print("🛑 Shutting down API...")

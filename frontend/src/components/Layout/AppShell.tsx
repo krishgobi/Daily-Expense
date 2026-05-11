@@ -10,6 +10,7 @@ interface AppShellProps {
 
 const navItems = [
   { label: 'Dashboard', to: '/' },
+  { label: 'Transactions', to: '/transactions' },
   { label: 'Analytics', to: '/analytics' },
   { label: 'Reports', to: '/reports' },
   { label: 'Search', to: '/search' },

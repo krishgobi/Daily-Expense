@@ -19,6 +19,8 @@ from app.reports.pdf_generator import PDFReportGenerator
 from app.reports.excel_generator import ExcelReportGenerator
 from app.reports.word_generator import WordReportGenerator
 from app.exceptions import AppException
+from app.models import User
+
 
 router = APIRouter()
 
@@ -32,7 +34,13 @@ async def generate_report(
     """Generate a report in the specified format."""
     try:
         user_uuid = UUID(user_id)
+        # Fetch user for report generation (name/email)
+        user = db.query(User).filter(User.id == user_uuid).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
         # Create report record
+
         report = ReportService.create_report(
             db,
             user_uuid,
@@ -50,16 +58,18 @@ async def generate_report(
         )
 
         # Generate file based on format
+        user_name = user.full_name or user.email
         if report_data.format == "PDF":
-            file_content = PDFReportGenerator.generate(data, current_user.full_name or current_user.email)
+            file_content = PDFReportGenerator.generate(data, user_name)
             file_ext = "pdf"
             content_type = "application/pdf"
         elif report_data.format == "EXCEL":
-            file_content = ExcelReportGenerator.generate(data, current_user.full_name or current_user.email)
+            file_content = ExcelReportGenerator.generate(data, user_name)
             file_ext = "xlsx"
             content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         elif report_data.format == "WORD":
-            file_content = WordReportGenerator.generate(data, current_user.full_name or current_user.email)
+            file_content = WordReportGenerator.generate(data, user_name)
+
             file_ext = "docx"
             content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         else:

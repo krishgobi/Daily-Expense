@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useTransactions } from '../../hooks/useTransactions'
+import { FileUpload } from '../Common/FileUpload'
 import { format } from 'date-fns'
 
 interface TransactionFormProps {
@@ -15,8 +16,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
   const [expectedReturnDate, setExpectedReturnDate] = useState('')
   const [purpose, setPurpose] = useState('')
   const [error, setError] = useState('')
+  const [createdTransactionId, setCreatedTransactionId] = useState<string | null>(null)
 
-  const { createTransaction, isCreating } = useTransactions()
+  const { createTransactionAsync, isCreating } = useTransactions()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,7 +41,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
     }
 
     try {
-      createTransaction({
+      const transaction = await createTransactionAsync({
         type: transactionType,
         personName,
         amount: numAmount,
@@ -47,6 +49,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
         expectedReturnDate: expectedReturnDate || undefined,
         purpose: purpose || undefined,
       })
+      setCreatedTransactionId(transaction.id)
 
       // Reset form
       setPersonName('')
@@ -55,10 +58,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
       setExpectedReturnDate('')
       setPurpose('')
 
-      if (onSuccess) onSuccess()
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create transaction')
     }
+  }
+
+  const finish = () => {
+    setCreatedTransactionId(null)
+    onSuccess?.()
   }
 
   return (
@@ -156,12 +163,34 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
 
         <button
           type="submit"
-          disabled={isCreating}
+          disabled={isCreating || !!createdTransactionId}
           className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
         >
           {isCreating ? 'Creating...' : 'Add Transaction'}
         </button>
       </div>
+
+      {createdTransactionId && (
+        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
+          <p className="mb-3 text-sm font-medium text-green-700">
+            Transaction saved. Screenshot upload is optional.
+          </p>
+          <FileUpload
+            entityId={createdTransactionId}
+            entityType="transaction"
+            onFileUpload={finish}
+            onError={(err) => setError(err)}
+            maxFiles={1}
+          />
+          <button
+            type="button"
+            onClick={finish}
+            className="mt-3 w-full rounded-md border border-green-300 bg-white px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-100"
+          >
+            Done without screenshot
+          </button>
+        </div>
+      )}
     </form>
   )
 }

@@ -106,6 +106,68 @@ async def list_expenses(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/summary/today", response_model=dict, tags=["expenses"])
+async def get_today_summary_route(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get today's expense summary."""
+    try:
+        user_uuid = UUID(user_id)
+        today = datetime.utcnow().date()
+        total = ExpenseService.get_daily_total(db, user_uuid, today)
+        return {
+            "status": "success",
+            "data": {"date": today, "total": total},
+            "message": "Today's summary retrieved",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/summary/week", response_model=dict, tags=["expenses"])
+async def get_week_summary_route(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get this week's expense summary."""
+    try:
+        user_uuid = UUID(user_id)
+        total, count = ExpenseService.get_weekly_total(db, user_uuid)
+        return {
+            "status": "success",
+            "data": {"total": total, "count": count},
+            "message": "Week summary retrieved",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/summary/month", response_model=dict, tags=["expenses"])
+async def get_month_summary_route(
+    year: int = Query(None),
+    month: int = Query(None),
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get month's expense summary."""
+    try:
+        user_uuid = UUID(user_id)
+        if year is None or month is None:
+            today = datetime.utcnow().date()
+            year = today.year
+            month = today.month
+
+        total, count = ExpenseService.get_monthly_total(db, user_uuid, year, month)
+        return {
+            "status": "success",
+            "data": {"year": year, "month": month, "total": total, "count": count},
+            "message": "Month summary retrieved",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{expense_id}", response_model=dict, tags=["expenses"])
 async def get_expense(
     expense_id: str,
@@ -166,68 +228,6 @@ async def delete_expense(
         }
     except AppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/summary/today", response_model=dict, tags=["expenses"])
-async def get_today_summary(
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
-    """Get today's expense summary."""
-    try:
-        user_uuid = UUID(user_id)
-        today = datetime.utcnow().date()
-        total = ExpenseService.get_daily_total(db, user_uuid, today)
-        return {
-            "status": "success",
-            "data": {"date": today, "total": total},
-            "message": "Today's summary retrieved",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/summary/week", response_model=dict, tags=["expenses"])
-async def get_week_summary(
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
-    """Get this week's expense summary."""
-    try:
-        user_uuid = UUID(user_id)
-        total, count = ExpenseService.get_weekly_total(db, user_uuid)
-        return {
-            "status": "success",
-            "data": {"total": total, "count": count},
-            "message": "Week summary retrieved",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/summary/month", response_model=dict, tags=["expenses"])
-async def get_month_summary(
-    year: int = Query(None),
-    month: int = Query(None),
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
-    """Get month's expense summary."""
-    try:
-        user_uuid = UUID(user_id)
-        if year is None or month is None:
-            today = datetime.utcnow().date()
-            year = today.year
-            month = today.month
-
-        total, count = ExpenseService.get_monthly_total(db, user_uuid, year, month)
-        return {
-            "status": "success",
-            "data": {"year": year, "month": month, "total": total, "count": count},
-            "message": "Month summary retrieved",
-        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

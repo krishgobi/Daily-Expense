@@ -80,6 +80,83 @@ async def list_transactions(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/summary/pending-repayments", response_model=dict, tags=["transactions"])
+async def get_pending_repayments_route(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get all pending money I need to pay (BORROWED)."""
+    try:
+        user_uuid = UUID(user_id)
+        transactions = TransactionService.get_pending_repayments(db, user_uuid)
+        return {
+            "status": "success",
+            "data": [TransactionResponse.from_orm(t) for t in transactions],
+            "message": "Pending repayments retrieved",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/summary/pending-collections", response_model=dict, tags=["transactions"])
+async def get_pending_collections_route(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get all pending money I need to receive (LENT)."""
+    try:
+        user_uuid = UUID(user_id)
+        transactions = TransactionService.get_pending_collections(db, user_uuid)
+        return {
+            "status": "success",
+            "data": [TransactionResponse.from_orm(t) for t in transactions],
+            "message": "Pending collections retrieved",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/summary/overdue", response_model=dict, tags=["transactions"])
+async def get_overdue_route(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get all overdue transactions."""
+    try:
+        user_uuid = UUID(user_id)
+        overdue_borrowed, overdue_lent = TransactionService.get_overdue_transactions(
+            db, user_uuid
+        )
+        return {
+            "status": "success",
+            "data": {
+                "overdue_borrowed": [TransactionResponse.from_orm(t) for t in overdue_borrowed],
+                "overdue_lent": [TransactionResponse.from_orm(t) for t in overdue_lent],
+            },
+            "message": "Overdue transactions retrieved",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/summary/overview", response_model=dict, tags=["transactions"])
+async def get_transactions_summary_route(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get summary of all transactions."""
+    try:
+        user_uuid = UUID(user_id)
+        summary = TransactionService.get_transactions_summary(db, user_uuid)
+        return {
+            "status": "success",
+            "data": summary,
+            "message": "Transaction summary retrieved",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{transaction_id}", response_model=dict, tags=["transactions"])
 async def get_transaction(
     transaction_id: str,
@@ -169,83 +246,6 @@ async def delete_transaction(
         }
     except AppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/summary/pending-repayments", response_model=dict, tags=["transactions"])
-async def get_pending_repayments(
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
-    """Get all pending money I need to pay (BORROWED)."""
-    try:
-        user_uuid = UUID(user_id)
-        transactions = TransactionService.get_pending_repayments(db, user_uuid)
-        return {
-            "status": "success",
-            "data": [TransactionResponse.from_orm(t) for t in transactions],
-            "message": "Pending repayments retrieved",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/summary/pending-collections", response_model=dict, tags=["transactions"])
-async def get_pending_collections(
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
-    """Get all pending money I need to receive (LENT)."""
-    try:
-        user_uuid = UUID(user_id)
-        transactions = TransactionService.get_pending_collections(db, user_uuid)
-        return {
-            "status": "success",
-            "data": [TransactionResponse.from_orm(t) for t in transactions],
-            "message": "Pending collections retrieved",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/summary/overdue", response_model=dict, tags=["transactions"])
-async def get_overdue(
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
-    """Get all overdue transactions."""
-    try:
-        user_uuid = UUID(user_id)
-        overdue_borrowed, overdue_lent = TransactionService.get_overdue_transactions(
-            db, user_uuid
-        )
-        return {
-            "status": "success",
-            "data": {
-                "overdue_borrowed": [TransactionResponse.from_orm(t) for t in overdue_borrowed],
-                "overdue_lent": [TransactionResponse.from_orm(t) for t in overdue_lent],
-            },
-            "message": "Overdue transactions retrieved",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/summary/overview", response_model=dict, tags=["transactions"])
-async def get_transactions_summary(
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
-    """Get summary of all transactions."""
-    try:
-        user_uuid = UUID(user_id)
-        summary = TransactionService.get_transactions_summary(db, user_uuid)
-        return {
-            "status": "success",
-            "data": summary,
-            "message": "Transaction summary retrieved",
-        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

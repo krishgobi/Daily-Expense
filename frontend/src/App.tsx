@@ -10,6 +10,7 @@ import { ReportsPage } from './pages/ReportsPage'
 import { SearchPage } from './pages/SearchPage'
 import { CalendarPage } from './pages/CalendarPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
+import { TransactionHistoryPage } from './pages/TransactionHistoryPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +74,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ProfileSettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transactions"
+              element={
+                <ProtectedRoute>
+                  <TransactionHistoryPage />
                 </ProtectedRoute>
               }
             />

@@ -58,6 +58,7 @@ export const useTransactions = (filters?: {
     isLoading,
     error,
     createTransaction: createMutation.mutate,
+    createTransactionAsync: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
     completeTransaction: completeMutation.mutate,
     isCompleting: completeMutation.isPending,

@@ -19,7 +19,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
   const [error, setError] = useState('')
   const [createdExpenseId, setCreatedExpenseId] = useState<string | null>(null)
 
-  const { createCashExpense, createDigitalExpense, isCreatingCash, isCreatingDigital } = useExpenses()
+  const {
+    createCashExpenseAsync,
+    createDigitalExpenseAsync,
+    isCreatingCash,
+    isCreatingDigital,
+  } = useExpenses()
 
   const isLoading = isCreatingCash || isCreatingDigital
 
@@ -40,7 +45,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
 
     try {
       if (expenseType === 'CASH') {
-        const response = await createCashExpense({
+        const expense = await createCashExpenseAsync({
           purpose,
           amount: numAmount,
           date,
@@ -48,11 +53,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
           location: location || undefined,
         })
         // Capture expense ID for file upload
-        if (response?.data?.id) {
-          setCreatedExpenseId(response.data.id)
+        if (expense?.id) {
+          setCreatedExpenseId(expense.id)
         }
       } else {
-        const response = await createDigitalExpense({
+        const expense = await createDigitalExpenseAsync({
           purpose,
           amount: numAmount,
           paymentMethod,
@@ -61,8 +66,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
           location: location || undefined,
         })
         // Capture expense ID for file upload
-        if (response?.data?.id) {
-          setCreatedExpenseId(response.data.id)
+        if (expense?.id) {
+          setCreatedExpenseId(expense.id)
         }
       }
 
@@ -79,6 +84,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
 
   const handleFileUploadSuccess = () => {
     // After file upload, close the form
+    setCreatedExpenseId(null)
+    if (onSuccess) onSuccess()
+  }
+
+  const finishWithoutUpload = () => {
     setCreatedExpenseId(null)
     if (onSuccess) onSuccess()
   }
@@ -199,7 +209,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !!createdExpenseId}
           className="h-11 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50 dark:focus:ring-blue-950"
         >
           {isLoading ? 'Adding...' : 'Add Expense'}
@@ -210,7 +220,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
       {createdExpenseId && (
         <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/40">
           <p className="mb-3 text-sm font-medium text-green-700 dark:text-green-300">
-            ✓ Expense created successfully! Now you can optionally upload media files.
+            Expense saved. Screenshot or receipt upload is optional.
           </p>
           <FileUpload
             entityId={createdExpenseId}
@@ -219,6 +229,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
             onError={(err) => setError(err)}
             maxFiles={5}
           />
+          <button
+            type="button"
+            onClick={finishWithoutUpload}
+            className="mt-3 h-10 w-full rounded-xl border border-green-300 bg-white px-4 text-sm font-semibold text-green-800 transition hover:bg-green-100 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200 dark:hover:bg-green-950/60"
+          >
+            Done without upload
+          </button>
         </div>
       )}
     </form>

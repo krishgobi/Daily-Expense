@@ -5,22 +5,73 @@ Auth itself is handled entirely by Supabase
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime
 
 from app.database.connection import get_db
-from app.dependencies import get_current_user_id
+from app.dependencies import get_current_user_id, security
 from app.schemas import UserUpdate, UserResponse
-from app.exceptions import AuthException
 from app.models import User
+from app.utils.supabase_jwt import get_supabase_validator
 
 router = APIRouter()
+
+
+def sync_supabase_profile(db: Session, user_uuid: UUID, full_name: str) -> None:
+    """Keep the optional Supabase profiles table aligned when it exists."""
+    try:
+        db.execute(
+            text(
+                """
+                INSERT INTO profiles (id, full_name)
+                VALUES (:id, :full_name)
+                ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name
+                """
+            ),
+            {"id": user_uuid, "full_name": full_name},
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+def create_user_profile_from_token(
+    db: Session,
+    user_uuid: UUID,
+    credentials: HTTPAuthorizationCredentials,
+) -> User:
+    """Create a local profile row for a Supabase-authenticated user."""
+    payload = get_supabase_validator().validate_token(credentials.credentials)
+    email = payload.get("email")
+    metadata = payload.get("user_metadata") or {}
+    full_name = metadata.get("full_name") or metadata.get("name") or "New User"
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authenticated user does not have an email address",
+        )
+
+    user = User(
+        id=user_uuid,
+        email=email,
+        password_hash="supabase-auth",
+        full_name=full_name,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    sync_supabase_profile(db, user_uuid, full_name)
+    return user
 
 
 @router.get("/me", response_model=dict, tags=["auth"])
 async def get_current_user_info(
     user_id: str = Depends(get_current_user_id),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
     """
@@ -47,12 +98,7 @@ async def get_current_user_info(
     user = db.query(User).filter(User.id == user_uuid).first()
     
     if not user:
-        # User not found - they may be logging in for the first time
-        # Create a profile for them
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User profile not found. Please contact support.",
-        )
+        user = create_user_profile_from_token(db, user_uuid, credentials)
     
     return {
         "status": "success",
@@ -111,6 +157,8 @@ async def update_profile(
     try:
         db.commit()
         db.refresh(user)
+        if update_data.full_name:
+            sync_supabase_profile(db, user_uuid, update_data.full_name)
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -123,4 +171,3 @@ async def update_profile(
         "data": UserResponse.from_orm(user),
         "message": "Profile updated successfully",
     }
-

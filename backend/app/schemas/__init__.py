@@ -119,6 +119,7 @@ class MediaResponse(BaseModel):
     id: UUID
     file_name: str
     file_path: str
+    file_url: Optional[str] = None
     file_type: str
     file_size: int
     uploaded_at: datetime

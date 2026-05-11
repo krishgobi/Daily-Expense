@@ -4,12 +4,10 @@ Validates JWT tokens from Supabase Auth using JWKS endpoint
 """
 
 import logging
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Dict, Any
 import httpx
 import jwt
 from jwt import PyJWKClient
-from functools import lru_cache
 
 from app.config import settings
 
@@ -19,7 +17,7 @@ logger = logging.getLogger(__name__)
 class SupabaseJWTValidator:
     """Validates Supabase JWT tokens using JWKS."""
 
-    def __init__(self, supabase_url: str):
+    def __init__(self, supabase_url: str, jwt_secret: str = ""):
         """
         Initialize validator with Supabase project URL.
         
@@ -29,6 +27,7 @@ class SupabaseJWTValidator:
         self.supabase_url = supabase_url.rstrip('/')
         self.jwks_url = f"{self.supabase_url}/auth/v1/keys"
         self.issuer = f"{self.supabase_url}/auth/v1"
+        self.jwt_secret = jwt_secret
         
         # Initialize JWKS client with caching
         self.jwks_client = PyJWKClient(self.jwks_url)
@@ -48,17 +47,28 @@ class SupabaseJWTValidator:
             jwt.ExpiredSignatureError: If token is expired
         """
         try:
-            # Get the signing key from JWKS
-            signing_key = self.jwks_client.get_signing_key_from_jwt(token)
-            
-            # Decode and validate token
-            payload = jwt.decode(
-                token,
-                signing_key.key,
-                algorithms=["RS256"],
-                audience="authenticated",
-                issuer=self.issuer,
-            )
+            header = jwt.get_unverified_header(token)
+            algorithm = header.get("alg")
+
+            if algorithm == "HS256":
+                if not self.jwt_secret:
+                    return self.validate_token_with_supabase(token)
+                payload = jwt.decode(
+                    token,
+                    self.jwt_secret,
+                    algorithms=["HS256"],
+                    audience="authenticated",
+                    issuer=self.issuer,
+                )
+            else:
+                signing_key = self.jwks_client.get_signing_key_from_jwt(token)
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=["RS256", "ES256"],
+                    audience="authenticated",
+                    issuer=self.issuer,
+                )
             
             return payload
             
@@ -67,10 +77,42 @@ class SupabaseJWTValidator:
             raise
         except jwt.InvalidTokenError as e:
             logger.warning(f"Invalid token: {str(e)}")
-            raise
+            try:
+                return self.validate_token_with_supabase(token)
+            except Exception:
+                raise
         except Exception as e:
             logger.error(f"Token validation failed: {str(e)}")
-            raise jwt.InvalidTokenError(f"Token validation failed: {str(e)}")
+            try:
+                return self.validate_token_with_supabase(token)
+            except Exception as fallback_error:
+                raise jwt.InvalidTokenError(f"Token validation failed: {str(fallback_error)}")
+
+    def validate_token_with_supabase(self, token: str) -> Dict[str, Any]:
+        """Validate a user access token through Supabase Auth."""
+        response = httpx.get(
+            f"{self.supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "apikey": settings.SUPABASE_KEY,
+            },
+            timeout=10,
+        )
+
+        if response.status_code != 200:
+            raise jwt.InvalidTokenError("Supabase rejected the access token")
+
+        user = response.json()
+        user_id = user.get("id")
+        if not user_id:
+            raise jwt.InvalidTokenError("Supabase user response missing id")
+
+        return {
+            "sub": user_id,
+            "email": user.get("email"),
+            "aud": user.get("aud", "authenticated"),
+            "user_metadata": user.get("user_metadata") or {},
+        }
 
     def extract_user_id(self, token: str) -> str:
         """
@@ -107,5 +149,5 @@ def get_supabase_validator() -> SupabaseJWTValidator:
     """Get or create the Supabase JWT validator instance."""
     global _validator
     if _validator is None:
-        _validator = SupabaseJWTValidator(settings.SUPABASE_URL)
+        _validator = SupabaseJWTValidator(settings.SUPABASE_URL, settings.SUPABASE_JWT_SECRET)
     return _validator

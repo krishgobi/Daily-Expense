@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useTransactions } from '../../hooks/useTransactions'
+import { FileUpload } from '../Common/FileUpload'
 import { format, differenceInDays } from 'date-fns'
 
 interface TransactionListProps {
@@ -10,6 +11,8 @@ interface TransactionListProps {
 export const TransactionList: React.FC<TransactionListProps> = ({ type, status }) => {
   const [limit, setLimit] = useState(20)
   const [offset, setOffset] = useState(0)
+  const [uploadingForId, setUploadingForId] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState('')
 
   const { transactions, total, isLoading, completeTransaction, isCompleting, deleteTransaction } = useTransactions({
     type,
@@ -114,8 +117,61 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
                 </div>
               )}
 
-              {transaction.status === 'PENDING' && (
-                <div className="flex gap-2">
+              {transaction.media && transaction.media.length > 0 && (
+                <div className="mb-4 rounded-lg border border-gray-200 bg-white/70 p-3">
+                  <p className="mb-2 text-sm font-semibold text-gray-700">Attached proof</p>
+                  <div className="space-y-2">
+                    {transaction.media.map((file) => (
+                      <a
+                        key={file.id}
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block truncate text-sm font-medium text-blue-700 hover:text-blue-900"
+                      >
+                        {file.file_name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {uploadingForId === transaction.id && (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-white p-4">
+                  <p className="mb-3 text-sm font-semibold text-gray-800">Upload receipt, screenshot, or PDF</p>
+                  {uploadError && (
+                    <div className="mb-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+                      {uploadError}
+                    </div>
+                  )}
+                  <FileUpload
+                    entityId={transaction.id}
+                    entityType="transaction"
+                    existingMedia={transaction.media || []}
+                    maxFiles={5}
+                    onError={setUploadError}
+                    onFileUpload={() => {
+                      setUploadError('')
+                      setUploadingForId(null)
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadError('')
+                    setUploadingForId(uploadingForId === transaction.id ? null : transaction.id)
+                  }}
+                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  {uploadingForId === transaction.id ? 'Close Upload' : 'Upload Proof'}
+                </button>
+
+                {transaction.status === 'PENDING' && (
+                  <>
                   <button
                     onClick={() => handleComplete(transaction.id)}
                     disabled={isCompleting}
@@ -129,8 +185,9 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
                   >
                     Delete
                   </button>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           )
         })}

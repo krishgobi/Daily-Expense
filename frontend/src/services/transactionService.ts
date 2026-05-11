@@ -11,6 +11,15 @@ export interface Transaction {
   expected_return_date?: string
   actual_return_date?: string
   status: 'PENDING' | 'COMPLETED'
+  media?: {
+    id: string
+    file_name: string
+    file_path: string
+    file_url?: string
+    file_type: string
+    file_size: number
+    uploaded_at: string
+  }[]
   created_at: string
   updated_at: string
 }

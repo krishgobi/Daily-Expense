@@ -58,6 +58,12 @@ class TransactionService:
         if not transaction:
             raise NotFoundException("Transaction not found")
 
+        # Load media for this transaction
+        from app.models import TransactionMedia
+        transaction.media = db.query(TransactionMedia).filter(
+            TransactionMedia.transaction_id == transaction.id
+        ).all()
+
         return transaction
 
     @staticmethod
@@ -86,6 +92,13 @@ class TransactionService:
 
         total_count = query.count()
         transactions = query.order_by(Transaction.given_date.desc()).offset(offset).limit(limit).all()
+        
+        # Load media for each transaction
+        from app.models import TransactionMedia
+        for transaction in transactions:
+            transaction.media = db.query(TransactionMedia).filter(
+                TransactionMedia.transaction_id == transaction.id
+            ).all()
 
         return transactions, total_count
 

@@ -83,6 +83,11 @@ class ExpenseService:
         if not expense:
             raise NotFoundException("Expense not found")
 
+        # Load media for this expense
+        expense.media = db.query(ExpenseMedia).filter(
+            ExpenseMedia.expense_id == expense.id
+        ).all()
+
         return expense
 
     @staticmethod
@@ -113,6 +118,12 @@ class ExpenseService:
 
         total_count = query.count()
         expenses = query.order_by(Expense.date.desc()).offset(offset).limit(limit).all()
+        
+        # Load media for each expense
+        for expense in expenses:
+            expense.media = db.query(ExpenseMedia).filter(
+                ExpenseMedia.expense_id == expense.id
+            ).all()
 
         return expenses, total_count
 

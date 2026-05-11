@@ -42,8 +42,12 @@ async def validate_file(file: UploadFile) -> bool:
         )
     
     # Check file size
+    # Read file content in chunks synchronously
     file_size = 0
-    async for chunk in file.file:
+    while True:
+        chunk = file.file.read(1024 * 1024)  # 1 MiB per iteration
+        if not chunk:
+            break
         file_size += len(chunk)
         if file_size > MAX_FILE_SIZE:
             raise HTTPException(
@@ -73,8 +77,12 @@ async def save_upload_file(file: UploadFile, user_id: str, entity_type: str) -> 
     # Validate file
     await validate_file(file)
     
-    # Determine bucket name
-    bucket_name = f"{entity_type}-media"
+    # Determine bucket name based on entity type (use the actual bucket names you have created)
+    bucket_mapping = {
+        "expense": "expense-medias",
+        "transaction": "transaction-medias",
+    }
+    bucket_name = bucket_mapping.get(entity_type, f"{entity_type}-media")
     
     # Read file content
     file_content = await file.read()
@@ -108,6 +116,6 @@ def get_file_type(extension: str) -> str:
     return "OTHER"
 
 
-def delete_file(file_path: str, bucket_name: str = "expense-media") -> bool:
+def delete_file(file_path: str, bucket_name: str = "expense-medias") -> bool:
     """Delete file from Supabase Storage"""
     return delete_file_from_supabase(file_path, bucket_name)

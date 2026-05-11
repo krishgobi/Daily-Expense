@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useId, useState } from 'react'
 import { Upload, X, File, Image as ImageIcon, FileText } from 'lucide-react'
 import { api } from '../../services/api'
 
@@ -22,6 +22,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false)
   const [media, setMedia] = useState(existingMedia)
   const [dragActive, setDragActive] = useState(false)
+  const inputId = useId()
 
   const endpoint = entityType === 'expense' ? `/expenses/${entityId}/upload-media` : `/transactions/${entityId}/upload-media`
 
@@ -128,14 +129,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       >
         <input
           type="file"
-          id="file-upload"
+          id={inputId}
           className="hidden"
           onChange={handleChange}
           disabled={isUploading || media.length >= maxFiles}
-          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+          accept="image/*,.pdf"
         />
 
-        <label htmlFor="file-upload" className={isUploading ? 'cursor-not-allowed' : 'cursor-pointer'}>
+        <label htmlFor={inputId} className={isUploading ? 'cursor-not-allowed' : 'cursor-pointer'}>
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-8 h-8 text-gray-400" />
             <div>
@@ -143,7 +144,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 {isUploading ? 'Uploading...' : 'Drop files or click to upload'}
               </p>
               <p className="text-xs text-gray-500">
-                JPG, PNG, PDF or Word documents (Max 10MB)
+                JPG, PNG, or PDF (Max 10MB)
               </p>
             </div>
           </div>
