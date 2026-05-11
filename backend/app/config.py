@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str = ""
 
+    # Gemini API
+    GEMINI_API_KEY: str = ""
+
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True

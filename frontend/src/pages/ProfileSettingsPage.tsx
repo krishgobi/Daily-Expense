@@ -1,15 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Camera, CheckCircle2, Loader2 } from 'lucide-react'
+import { AlertCircle, Camera, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react'
 import logo from '../assets/logo.svg'
 import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 export const ProfileSettingsPage: React.FC = () => {
+  const navigate = useNavigate()
   const { user, updateProfile } = useAuth()
   const [fullName, setFullName] = useState(user?.full_name || '')
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const handleBack = () => {
+    navigate(-1)
+  }
 
   const initials = useMemo(() => {
     const name = fullName.trim() || user?.email || 'U'
@@ -67,6 +73,13 @@ export const ProfileSettingsPage: React.FC = () => {
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-lg items-center">
         <section className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-200/60 transition-colors dark:border-gray-700 dark:bg-gray-900 dark:shadow-black/30 sm:p-8">
           <header className="mb-8 flex items-center justify-between gap-4">
+            <button
+              onClick={handleBack}
+              className="inline-flex items-center gap-2 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="font-medium">Back</span>
+            </button>
             <div className="flex min-w-0 items-center gap-3">
               <img src={logo} alt="Tracksy.AI logo" className="h-11 w-11 rounded-xl object-contain" />
               <div className="min-w-0">

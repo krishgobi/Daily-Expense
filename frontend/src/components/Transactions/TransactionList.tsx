@@ -1,22 +1,24 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTransactions } from '../../hooks/useTransactions'
 import { FileUpload } from '../Common/FileUpload'
 import { TransactionEditForm } from './TransactionEditForm'
 import { format, differenceInDays } from 'date-fns'
-import { ChevronDown, ChevronUp, Edit } from 'lucide-react'
+import { ChevronDown, ChevronUp, Edit, ArrowRight } from 'lucide-react'
 
 interface TransactionListProps {
   type?: 'BORROWED' | 'LENT'
   status?: 'PENDING' | 'COMPLETED'
+  showAll?: boolean // New prop to control if showing all transactions
 }
 
-export const TransactionList: React.FC<TransactionListProps> = ({ type, status }) => {
-  const [limit, setLimit] = useState(20)
+export const TransactionList: React.FC<TransactionListProps> = ({ type, status, showAll = false }) => {
+  const navigate = useNavigate()
+  const [limit] = useState(showAll ? 50 : 5) // Show 50 if showing all, otherwise 5
   const [offset, setOffset] = useState(0)
   const [uploadingForId, setUploadingForId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set())
-  const [showAllTransactions, setShowAllTransactions] = useState(false)
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null)
 
   const { transactions, total, isLoading, completeTransaction, isCompleting, deleteTransaction } = useTransactions({
@@ -67,12 +69,13 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
     })
   }
 
-  const toggleShowAll = () => {
-    setShowAllTransactions(!showAllTransactions)
+  // Navigate to all transactions page
+  const handleShowAll = () => {
+    const queryParams = new URLSearchParams()
+    if (type) queryParams.set('type', type)
+    if (status) queryParams.set('status', status)
+    navigate(`/transactions/all?${queryParams.toString()}`)
   }
-
-  // Show limited transactions initially
-  const displayTransactions = showAllTransactions ? transactions : transactions.slice(0, 5)
 
   if (isLoading) {
     return <div className="text-center py-8">Loading transactions...</div>
@@ -93,7 +96,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
       </h2>
 
       <div className="space-y-4">
-        {displayTransactions.map((transaction) => {
+        {transactions.map((transaction) => {
           const overdueStatus = getOverdueStatus(transaction)
           const isOverdue = overdueStatus && overdueStatus > 0
           const isPending = transaction.status === 'PENDING'
@@ -269,24 +272,40 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
         })}
       </div>
 
-      {/* Show More/Less Button */}
-      {transactions.length > 5 && (
+      {/* Show All Button - Only show when not in showAll mode */}
+      {!showAll && total > limit && (
         <div className="mt-4 text-center">
           <button
-            onClick={toggleShowAll}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            onClick={handleShowAll}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
           >
-            {showAllTransactions ? (
-              <>
-                <ChevronUp className="h-4 w-4" />
-                Show Less
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-4 w-4" />
-                Show All ({transactions.length - 5} more)
-              </>
-            )}
+            <>
+              <ArrowRight className="h-4 w-4" />
+              View All Transactions ({total} total)
+            </>
+          </button>
+        </div>
+      )}
+
+      {/* Pagination for All Transactions Page */}
+      {showAll && total > limit && (
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            onClick={() => setOffset(Math.max(0, offset - limit))}
+            disabled={offset === 0}
+            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-600">
+            Showing {offset + 1}-{Math.min(offset + limit, total)} of {total}
+          </span>
+          <button
+            onClick={() => setOffset(offset + limit)}
+            disabled={offset + limit >= total}
+            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+          >
+            Next
           </button>
         </div>
       )}
@@ -313,6 +332,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
         </div>
       )}
 
+      
       {/* Edit Transaction Modal */}
       {editingTransactionId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
