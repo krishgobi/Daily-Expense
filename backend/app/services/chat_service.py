@@ -6,8 +6,6 @@ from typing import List, Dict, Any, Optional
 from supabase import create_client, Client
 from app.core.config import settings
 import openai
-from app.services.expense_service import expense_service
-from app.services.transaction_service import transaction_service
 
 class ChatService:
     def __init__(self):
@@ -61,7 +59,9 @@ class ChatService:
             )
             return response['data'][0]['embedding']
         except Exception as e:
-            raise Exception(f"Failed to generate embedding: {str(e)}")
+            # If embedding fails, return empty list to handle gracefully
+            print(f"Warning: Failed to generate embedding: {str(e)}")
+            return []
     
     async def store_rag_context(
         self, 
@@ -76,19 +76,26 @@ class ChatService:
             # Generate embedding
             embedding = await self.generate_embedding(content_text)
             
-            # Store in rag_context table
-            result = self.supabase.table('rag_context').insert({
+            # Store in rag_context table (without embedding if vector not available)
+            insert_data = {
                 'user_id': user_id,
                 'content_type': content_type,
                 'content_id': content_id,
                 'content_text': content_text,
-                'embedding': embedding,
                 'metadata': metadata or {}
-            }).execute()
+            }
+            
+            # Only add embedding if it was successfully generated
+            if embedding:
+                insert_data['embedding'] = embedding
+            
+            result = self.supabase.table('rag_context').insert(insert_data).execute()
             
             return result.data[0] if result.data else None
         except Exception as e:
-            raise Exception(f"Failed to store RAG context: {str(e)}")
+            # If storing fails, continue without RAG
+            print(f"Warning: Failed to store RAG context: {str(e)}")
+            return None
     
     async def search_relevant_context(
         self, 
@@ -99,26 +106,41 @@ class ChatService:
     ) -> List[Dict[str, Any]]:
         """Search for relevant context using RAG"""
         try:
-            # Generate embedding for query
+            # Try vector search first
             query_embedding = await self.generate_embedding(query)
             
-            # Search using similarity function
-            result = self.supabase.rpc('search_similar_content', {
-                'p_user_id': user_id,
-                'p_query_embedding': query_embedding,
-                'p_content_type': content_type,
-                'p_limit': limit
-            }).execute()
+            if query_embedding:
+                # Search using similarity function
+                try:
+                    result = self.supabase.rpc('search_similar_content', {
+                        'p_user_id': user_id,
+                        'p_query_embedding': query_embedding,
+                        'p_content_type': content_type,
+                        'p_limit': limit
+                    }).execute()
+                    
+                    if result.data:
+                        return result.data
+                except Exception as e:
+                    print(f"Warning: Vector search failed: {str(e)}")
+            
+            # Fallback to simple text search
+            result = self.supabase.table('rag_context').select('*').eq('user_id', user_id).ilike('content_text', f'%{query}%').limit(limit).execute()
             
             return result.data if result.data else []
         except Exception as e:
-            raise Exception(f"Failed to search context: {str(e)}")
+            print(f"Warning: Failed to search context: {str(e)}")
+            return []
     
     async def index_user_data(self, user_id: str) -> Dict[str, int]:
         """Index all user expenses and transactions for RAG"""
         try:
             indexed_expenses = 0
             indexed_transactions = 0
+            
+            # Import services locally to avoid circular imports
+            from app.services.expense_service import expense_service
+            from app.services.transaction_service import transaction_service
             
             # Get user expenses
             expenses_result = expense_service.get_expenses({'user_id': user_id, 'limit': 1000})

@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.services.chat_service import chat_service
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
 
 router = APIRouter()
+
+# Import chat service lazily to avoid circular imports
+def get_chat_service():
+    from app.services.chat_service import chat_service
+    return chat_service
 
 class ChatMessageRequest(BaseModel):
     message: str
@@ -36,6 +40,8 @@ async def chat_with_assistant(
 ):
     """Chat with AI assistant using RAG"""
     try:
+        chat_service = get_chat_service()
+        
         # Generate session ID if not provided
         session_id = request.session_id or str(uuid.uuid4())
         
@@ -65,6 +71,7 @@ async def get_chat_history(
 ):
     """Get chat history for a session"""
     try:
+        chat_service = get_chat_service()
         messages = await chat_service.get_chat_history(
             user_id=current_user.id,
             session_id=session_id,
@@ -86,6 +93,8 @@ async def index_user_data(
 ):
     """Index user's expenses and transactions for RAG"""
     try:
+        chat_service = get_chat_service()
+        
         # Run indexing in background
         def run_indexing():
             import asyncio

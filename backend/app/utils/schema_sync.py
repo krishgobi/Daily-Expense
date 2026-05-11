@@ -6,12 +6,18 @@ create missing tables but cannot add columns to existing Supabase tables. This
 module adds the columns the current models need without dropping data.
 """
 
-from app.core.config import settings
-from app.db.session import get_db
-from app.utils.chat_schema import CHAT_HISTORY_TABLE_SQL, RAG_CONTEXT_TABLE_SQL, SIMILARITY_SEARCH_FUNCTION_SQL
 from sqlalchemy import text
-
 from app.database.connection import engine
+
+# Import chat schema only when needed to avoid circular imports
+try:
+    from app.utils.chat_schema import CHAT_HISTORY_TABLE_SQL, RAG_CONTEXT_TABLE_SQL, SIMILARITY_SEARCH_FUNCTION_SQL
+    CHAT_ENABLED = True
+except ImportError:
+    CHAT_ENABLED = False
+    CHAT_HISTORY_TABLE_SQL = ""
+    RAG_CONTEXT_TABLE_SQL = ""
+    SIMILARITY_SEARCH_FUNCTION_SQL = ""
 
 
 def run_schema_sync() -> None:
@@ -142,10 +148,14 @@ def run_schema_sync() -> None:
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS file_size INTEGER"))
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP DEFAULT NOW()"))
         
-        # Create chat tables for RAG system
-        connection.execute(text(CHAT_HISTORY_TABLE_SQL))
-        connection.execute(text(RAG_CONTEXT_TABLE_SQL))
-        connection.execute(text(SIMILARITY_SEARCH_FUNCTION_SQL))
+        # Create chat tables for RAG system only if chat is enabled
+        if CHAT_ENABLED:
+            try:
+                connection.execute(text(CHAT_HISTORY_TABLE_SQL))
+                connection.execute(text(RAG_CONTEXT_TABLE_SQL))
+                connection.execute(text(SIMILARITY_SEARCH_FUNCTION_SQL))
+            except Exception as e:
+                print(f"Warning: Failed to create chat tables: {e}")
 
 
 if __name__ == "__main__":

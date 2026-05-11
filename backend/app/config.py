@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = ""
 
+    # OpenAI
+    OPENAI_API_KEY: str = ""
+
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
