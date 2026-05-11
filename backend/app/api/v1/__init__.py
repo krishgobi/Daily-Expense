@@ -42,10 +42,12 @@ class ChatMessageResponse(BaseModel):
 async def get_gemini_response(message: str) -> str:
     """Get response from Gemini API"""
     try:
-        if not settings.GEMINI_API_KEY:
+        # Check if Gemini API key is available
+        gemini_key = getattr(settings, 'GEMINI_API_KEY', None)
+        if not gemini_key or gemini_key == "":
             return "Gemini API key not configured. Please add the API key to use enhanced AI features."
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={settings.GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={gemini_key}"
         
         payload = {
             "contents": [{

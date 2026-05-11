@@ -1,16 +1,20 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useExpenses } from '../../hooks/useExpenses'
 import { FileUpload } from '../Common/FileUpload'
 import { format } from 'date-fns'
 import { MediaFile } from '../../services/expenseService'
 import { ExpenseCardSkeleton, Skeleton } from '../UI/SkeletonLoader'
+import { ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 
 interface ExpenseListProps {
   type?: 'CASH' | 'DIGITAL'
+  showAll?: boolean
 }
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
-  const [limit, setLimit] = useState(20)
+export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false }) => {
+  const navigate = useNavigate()
+  const [limit, setLimit] = useState(showAll ? 50 : 5)
   const [offset, setOffset] = useState(0)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [uploadingForId, setUploadingForId] = useState<string | null>(null)
@@ -253,7 +257,27 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
             ))}
           </div>
 
-      {total > limit && (
+      {/* Show All Button - Only show when not in showAll mode */}
+      {!showAll && total > limit && (
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => {
+              const queryParams = new URLSearchParams()
+              if (type) queryParams.set('type', type)
+              navigate(`/expenses/all?${queryParams.toString()}`)
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+          >
+            <>
+              <ArrowRight className="h-4 w-4" />
+              View All Expenses ({total} total)
+            </>
+          </button>
+        </div>
+      )}
+
+      {/* Pagination for All Expenses Page */}
+      {showAll && total > limit && (
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <button
             onClick={() => setOffset(Math.max(0, offset - limit))}

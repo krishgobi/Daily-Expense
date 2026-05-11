@@ -13,6 +13,7 @@ import { CalendarPage } from './pages/CalendarPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 import { TransactionHistoryPage } from './pages/TransactionHistoryPage'
 import { AllTransactionsPage } from './pages/AllTransactionsPage'
+import { AllExpensesPage } from './pages/AllExpensesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +94,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <AllTransactionsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/expenses/all"
+                element={
+                  <ProtectedRoute>
+                    <AllExpensesPage />
                   </ProtectedRoute>
                 }
               />
