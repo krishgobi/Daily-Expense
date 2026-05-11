@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { LogOut, Settings, Menu, X } from 'lucide-react'
 import logo from '../../assets/logo.svg'
 import { useAuth } from '../../context/AuthContext'
+import { ChatBot } from '../Chat/ChatBot'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -183,6 +184,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
       {/* Add padding to main content on mobile to account for bottom nav */}
       <div className="lg:hidden h-16"></div>
+      
+      {/* ChatBot Component */}
+      <ChatBot />
     </div>
   )
 }

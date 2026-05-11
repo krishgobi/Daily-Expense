@@ -49,6 +49,14 @@ export const useTransactions = (filters?: {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) =>
+      transactionService.updateTransaction(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => transactionService.deleteTransaction(id),
     onSuccess: () => {
@@ -67,6 +75,8 @@ export const useTransactions = (filters?: {
     isCreating: createMutation.isPending,
     completeTransaction: completeMutation.mutate,
     isCompleting: completeMutation.isPending,
+    updateTransaction: updateMutation.mutate,
+    isUpdating: updateMutation.isPending,
     deleteTransaction: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
   }

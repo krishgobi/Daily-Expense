@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import { useTransactions } from '../../hooks/useTransactions'
 import { FileUpload } from '../Common/FileUpload'
+import { TransactionEditForm } from './TransactionEditForm'
 import { format, differenceInDays } from 'date-fns'
+import { ChevronDown, ChevronUp, Edit } from 'lucide-react'
 
 interface TransactionListProps {
   type?: 'BORROWED' | 'LENT'
@@ -13,6 +15,9 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
   const [offset, setOffset] = useState(0)
   const [uploadingForId, setUploadingForId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
+  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set())
+  const [showAllTransactions, setShowAllTransactions] = useState(false)
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null)
 
   const { transactions, total, isLoading, completeTransaction, isCompleting, deleteTransaction } = useTransactions({
     type,
@@ -38,6 +43,37 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
     }
   }
 
+  const handleEdit = (id: string) => {
+    setEditingTransactionId(id)
+  }
+
+  const handleEditCancel = () => {
+    setEditingTransactionId(null)
+  }
+
+  const handleEditSuccess = () => {
+    setEditingTransactionId(null)
+  }
+
+  const toggleTransactionExpansion = (id: string) => {
+    setExpandedTransactions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  const toggleShowAll = () => {
+    setShowAllTransactions(!showAllTransactions)
+  }
+
+  // Show limited transactions initially
+  const displayTransactions = showAllTransactions ? transactions : transactions.slice(0, 5)
+
   if (isLoading) {
     return <div className="text-center py-8">Loading transactions...</div>
   }
@@ -57,7 +93,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
       </h2>
 
       <div className="space-y-4">
-        {transactions.map((transaction) => {
+        {displayTransactions.map((transaction) => {
           const overdueStatus = getOverdueStatus(transaction)
           const isOverdue = overdueStatus && overdueStatus > 0
           const isPending = transaction.status === 'PENDING'
@@ -65,133 +101,195 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
           return (
             <div
               key={transaction.id}
-              className={`border rounded-lg p-4 ${
+              className={`border rounded-lg overflow-hidden ${
                 isOverdue ? 'border-red-300 bg-red-50' : isPending ? 'border-yellow-300 bg-yellow-50' : 'border-green-300 bg-green-50'
               }`}
             >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-semibold text-lg">{transaction.person_name}</h3>
-                  <p className="text-sm text-gray-600">{transaction.purpose}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-blue-600">₹{transaction.amount.toFixed(2)}</p>
-                  <p className="text-sm">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-semibold ${
-                        transaction.status === 'PENDING'
-                          ? 'bg-yellow-200 text-yellow-800'
-                          : 'bg-green-200 text-green-800'
-                      }`}
-                    >
-                      {transaction.status}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                <div>
-                  <p className="text-gray-600">Given on</p>
-                  <p className="font-semibold">{format(new Date(transaction.given_date), 'MMM dd, yyyy')}</p>
-                </div>
-                {transaction.expected_return_date && (
-                  <div>
-                    <p className="text-gray-600">Expected Return</p>
-                    <p
-                      className={`font-semibold ${
-                        isOverdue ? 'text-red-600' : isPending ? 'text-yellow-600' : 'text-gray-600'
-                      }`}
-                    >
-                      {format(new Date(transaction.expected_return_date), 'MMM dd, yyyy')}
-                      {isOverdue && <span className="ml-2 text-red-600">({overdueStatus}d overdue)</span>}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {transaction.actual_return_date && (
-                <div className="text-sm mb-4">
-                  <p className="text-gray-600">Completed on</p>
-                  <p className="font-semibold">{format(new Date(transaction.actual_return_date), 'MMM dd, yyyy')}</p>
-                </div>
-              )}
-
-              {transaction.media && transaction.media.length > 0 && (
-                <div className="mb-4 rounded-lg border border-gray-200 bg-white/70 p-3">
-                  <p className="mb-2 text-sm font-semibold text-gray-700">Attached proof</p>
-                  <div className="space-y-2">
-                    {transaction.media.map((file) => (
-                      <a
-                        key={file.id}
-                        href={file.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate text-sm font-medium text-blue-700 hover:text-blue-900"
+              {/* Collapsible Header */}
+              <div 
+                className="p-4 cursor-pointer hover:bg-opacity-80 transition-colors"
+                onClick={() => toggleTransactionExpansion(transaction.id)}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-semibold text-lg">{transaction.person_name}</h3>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          transaction.status === 'PENDING'
+                            ? 'bg-yellow-200 text-yellow-800'
+                            : 'bg-green-200 text-green-800'
+                        }`}
                       >
-                        {file.file_name}
-                      </a>
-                    ))}
+                        {transaction.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{transaction.purpose}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-blue-600">₹{transaction.amount.toFixed(2)}</p>
+                      <p className="text-sm text-gray-500">{format(new Date(transaction.given_date), 'MMM dd, yyyy')}</p>
+                    </div>
+                    <div className="p-2">
+                      {expandedTransactions.has(transaction.id) ? (
+                        <ChevronUp className="h-5 w-5 text-gray-600" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-600" />
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {uploadingForId === transaction.id && (
-                <div className="mb-4 rounded-lg border border-blue-200 bg-white p-4">
-                  <p className="mb-3 text-sm font-semibold text-gray-800">Upload receipt, screenshot, or PDF</p>
-                  {uploadError && (
-                    <div className="mb-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-                      {uploadError}
+              {/* Expandable Content */}
+              {expandedTransactions.has(transaction.id) && (
+                <div className="border-t border-gray-200 p-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div>
+                      <p className="text-gray-600">Given on</p>
+                      <p className="font-semibold">{format(new Date(transaction.given_date), 'MMM dd, yyyy')}</p>
+                    </div>
+                    {transaction.expected_return_date && (
+                      <div>
+                        <p className="text-gray-600">Expected Return</p>
+                        <p
+                          className={`font-semibold ${
+                            isOverdue ? 'text-red-600' : isPending ? 'text-yellow-600' : 'text-gray-600'
+                          }`}
+                        >
+                          {format(new Date(transaction.expected_return_date), 'MMM dd, yyyy')}
+                          {isOverdue && <span className="ml-2 text-red-600">({overdueStatus}d overdue)</span>}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {transaction.actual_return_date && (
+                    <div className="text-sm mb-4">
+                      <p className="text-gray-600">Completed on</p>
+                      <p className="font-semibold">{format(new Date(transaction.actual_return_date), 'MMM dd, yyyy')}</p>
                     </div>
                   )}
-                  <FileUpload
-                    entityId={transaction.id}
-                    entityType="transaction"
-                    existingMedia={transaction.media || []}
-                    maxFiles={5}
-                    onError={setUploadError}
-                    onFileUpload={() => {
-                      setUploadError('')
-                      setUploadingForId(null)
-                    }}
-                  />
+
+                  {transaction.media && transaction.media.length > 0 && (
+                    <div className="mb-4 rounded-lg border border-gray-200 bg-white/70 p-3">
+                      <p className="mb-2 text-sm font-semibold text-gray-700">Attached proof</p>
+                      <div className="space-y-2">
+                        {transaction.media.map((file) => (
+                          <a
+                            key={file.id}
+                            href={file.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block truncate text-sm font-medium text-blue-700 hover:text-blue-900"
+                          >
+                            {file.file_name}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {uploadingForId === transaction.id && (
+                    <div className="mb-4 rounded-lg border border-blue-200 bg-white p-4">
+                      <p className="mb-3 text-sm font-semibold text-gray-800">Upload receipt, screenshot, or PDF</p>
+                      {uploadError && (
+                        <div className="mb-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+                          {uploadError}
+                        </div>
+                      )}
+                      <FileUpload
+                        entityId={transaction.id}
+                        entityType="transaction"
+                        existingMedia={transaction.media || []}
+                        maxFiles={5}
+                        onError={setUploadError}
+                        onFileUpload={() => {
+                          setUploadError('')
+                          setUploadingForId(null)
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setUploadError('')
+                        setUploadingForId(uploadingForId === transaction.id ? null : transaction.id)
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                    >
+                      {uploadingForId === transaction.id ? 'Close Upload' : 'Upload Proof'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEdit(transaction.id)
+                      }}
+                      className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm flex items-center gap-1"
+                    >
+                      <Edit className="h-3 w-3" />
+                      Edit
+                    </button>
+
+                    {transaction.status === 'PENDING' && (
+                      <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleComplete(transaction.id)
+                        }}
+                        disabled={isCompleting}
+                        className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-sm"
+                      >
+                        {isCompleting ? 'Marking...' : 'Mark Complete'}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(transaction.id)
+                        }}
+                        className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      >
+                        Delete
+                      </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadError('')
-                    setUploadingForId(uploadingForId === transaction.id ? null : transaction.id)
-                  }}
-                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                >
-                  {uploadingForId === transaction.id ? 'Close Upload' : 'Upload Proof'}
-                </button>
-
-                {transaction.status === 'PENDING' && (
-                  <>
-                  <button
-                    onClick={() => handleComplete(transaction.id)}
-                    disabled={isCompleting}
-                    className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-sm"
-                  >
-                    {isCompleting ? 'Marking...' : 'Mark Complete'}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(transaction.id)}
-                    className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                  >
-                    Delete
-                  </button>
-                  </>
-                )}
-              </div>
             </div>
           )
         })}
       </div>
+
+      {/* Show More/Less Button */}
+      {transactions.length > 5 && (
+        <div className="mt-4 text-center">
+          <button
+            onClick={toggleShowAll}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            {showAllTransactions ? (
+              <>
+                <ChevronUp className="h-4 w-4" />
+                Show Less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4" />
+                Show All ({transactions.length - 5} more)
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {total > limit && (
         <div className="mt-4 flex items-center justify-between">
@@ -212,6 +310,19 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status }
           >
             Next
           </button>
+        </div>
+      )}
+
+      {/* Edit Transaction Modal */}
+      {editingTransactionId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <TransactionEditForm
+              transactionId={editingTransactionId}
+              onSuccess={handleEditSuccess}
+              onCancel={handleEditCancel}
+            />
+          </div>
         </div>
       )}
     </div>

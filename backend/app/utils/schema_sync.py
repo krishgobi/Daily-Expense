@@ -6,6 +6,9 @@ create missing tables but cannot add columns to existing Supabase tables. This
 module adds the columns the current models need without dropping data.
 """
 
+from app.core.config import settings
+from app.db.session import get_db
+from app.utils.chat_schema import CHAT_HISTORY_TABLE_SQL, RAG_CONTEXT_TABLE_SQL, SIMILARITY_SEARCH_FUNCTION_SQL
 from sqlalchemy import text
 
 from app.database.connection import engine
@@ -138,6 +141,11 @@ def run_schema_sync() -> None:
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS file_type VARCHAR(20)"))
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS file_size INTEGER"))
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP DEFAULT NOW()"))
+        
+        # Create chat tables for RAG system
+        connection.execute(text(CHAT_HISTORY_TABLE_SQL))
+        connection.execute(text(RAG_CONTEXT_TABLE_SQL))
+        connection.execute(text(SIMILARITY_SEARCH_FUNCTION_SQL))
 
 
 if __name__ == "__main__":
