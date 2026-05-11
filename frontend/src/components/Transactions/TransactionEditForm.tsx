@@ -73,6 +73,7 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
 
     try {
       const updateData: any = {
+        transaction_type: transactionType,
         person_name: personName,
         purpose: purpose || undefined,
         amount: numAmount,

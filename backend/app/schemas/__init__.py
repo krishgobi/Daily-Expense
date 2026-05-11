@@ -144,8 +144,10 @@ class TransactionCreate(TransactionBase):
 
 
 class TransactionUpdate(BaseModel):
+    transaction_type: Optional[str] = None
     person_name: Optional[str] = None
     amount: Optional[float] = None
+    given_date: Optional[date] = None
     expected_return_date: Optional[date] = None
     purpose: Optional[str] = None
 
