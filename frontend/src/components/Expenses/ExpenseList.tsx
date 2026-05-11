@@ -3,6 +3,7 @@ import { useExpenses } from '../../hooks/useExpenses'
 import { FileUpload } from '../Common/FileUpload'
 import { format } from 'date-fns'
 import { MediaFile } from '../../services/expenseService'
+import { ExpenseCardSkeleton, Skeleton } from '../UI/SkeletonLoader'
 
 interface ExpenseListProps {
   type?: 'CASH' | 'DIGITAL'
@@ -37,7 +38,18 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
   }
 
   if (isLoading) {
-    return <div className="py-8 text-center text-gray-600 dark:text-gray-400">Loading expenses...</div>
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <Skeleton width="150px" height="24px" />
+        </div>
+        <div>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <ExpenseCardSkeleton key={index} />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   if (expenses.length === 0) {
@@ -49,9 +61,9 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
           {type === 'CASH' ? 'Cash Expenses' : type === 'DIGITAL' ? 'Digital Expenses' : 'Recent Expenses'}
         </h2>
       </div>
@@ -59,47 +71,99 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type }) => {
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {expenses.map((expense) => (
               <div key={expense.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors">
-                <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(expense.id)}>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {format(new Date(expense.date), 'MMM dd, yyyy')}
+                <div className="cursor-pointer" onClick={() => toggleExpand(expense.id)}>
+                  {/* Mobile layout - stacked */}
+                  <div className="lg:hidden">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            expense.type === 'CASH'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {expense.type}
+                        </span>
+                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          ₹{expense.amount.toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(expense.id)
+                          }}
+                          disabled={isDeleting}
+                          className="text-sm font-medium text-red-600 transition hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleExpand(expense.id)
+                          }}
+                          className="text-sm font-medium text-blue-600 transition hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          {expandedId === expense.id ? '▲' : '▼'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {expense.purpose}
+                    <div className="space-y-1">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {expense.purpose}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {format(new Date(expense.date), 'MMM dd, yyyy')}
+                      </div>
                     </div>
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        expense.type === 'CASH'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {expense.type}
-                    </span>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      ₹{expense.amount.toFixed(2)}
+
+                  {/* Desktop layout - horizontal */}
+                  <div className="hidden lg:flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {format(new Date(expense.date), 'MMM dd, yyyy')}
+                      </div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {expense.purpose}
+                      </div>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          expense.type === 'CASH'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {expense.type}
+                      </span>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(expense.id)
-                      }}
-                      disabled={isDeleting}
-                      className="text-sm font-medium text-red-600 transition hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleExpand(expense.id)
-                      }}
-                      className="text-sm font-medium text-blue-600 transition hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                    >
-                      {expandedId === expense.id ? '▲' : '▼'}
-                    </button>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        ₹{expense.amount.toFixed(2)}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(expense.id)
+                        }}
+                        disabled={isDeleting}
+                        className="text-sm font-medium text-red-600 transition hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleExpand(expense.id)
+                        }}
+                        className="text-sm font-medium text-blue-600 transition hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        {expandedId === expense.id ? '▲' : '▼'}
+                      </button>
+                    </div>
                   </div>
                 </div>
 

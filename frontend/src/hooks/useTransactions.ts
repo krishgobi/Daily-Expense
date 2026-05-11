@@ -10,9 +10,13 @@ export const useTransactions = (filters?: {
 }) => {
   const queryClient = useQueryClient()
 
-  const { data: result, isLoading, error } = useQuery({
+  const { data: result, isLoading, error, isFetching } = useQuery({
     queryKey: ['transactions', filters],
     queryFn: () => transactionService.getTransactions(filters),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes garbage collection
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   const createMutation = useMutation({
@@ -56,6 +60,7 @@ export const useTransactions = (filters?: {
     transactions: result?.data || [],
     total: result?.meta.total || 0,
     isLoading,
+    isFetching,
     error,
     createTransaction: createMutation.mutate,
     createTransactionAsync: createMutation.mutateAsync,

@@ -1,15 +1,21 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useExpenses } from '../../hooks/useExpenses'
 import { FileUpload } from '../Common/FileUpload'
 import { format } from 'date-fns'
+import { Expense, MediaFile } from '../../services/expenseService'
 
-interface ExpenseFormProps {
+interface ExpenseEditFormProps {
+  expenseId: string
   onSuccess?: () => void
-  type?: 'CASH' | 'DIGITAL'
+  onCancel?: () => void
 }
 
-export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CASH' }) => {
-  const [expenseType, setExpenseType] = useState<'CASH' | 'DIGITAL'>(type)
+export const ExpenseEditForm: React.FC<ExpenseEditFormProps> = ({ 
+  expenseId, 
+  onSuccess, 
+  onCancel 
+}) => {
+  const [expenseType, setExpenseType] = useState<'CASH' | 'DIGITAL'>('CASH')
   const [purpose, setPurpose] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -17,107 +23,118 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
   const [description, setDescription] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('GPay')
   const [error, setError] = useState('')
-  const [createdExpenseId, setCreatedExpenseId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showFileUpload, setShowFileUpload] = useState(false)
+  const [existingMedia, setExistingMedia] = useState<MediaFile[]>([])
 
-  const {
-    createCashExpenseAsync,
-    createDigitalExpenseAsync,
-    isCreatingCash,
-    isCreatingDigital,
-  } = useExpenses()
+  // Get expense service directly for update
+  const expenseService = require('../../services/expenseService').default
 
-  const isLoading = isCreatingCash || isCreatingDigital
+  useEffect(() => {
+    const loadExpense = async () => {
+      try {
+        const expense = await expenseService.getExpense(expenseId)
+        setExpenseType(expense.type as 'CASH' | 'DIGITAL')
+        setPurpose(expense.purpose)
+        setAmount(expense.amount.toString())
+        setDate(format(new Date(expense.date), 'yyyy-MM-dd'))
+        setLocation(expense.location || '')
+        setDescription(expense.description || '')
+        setPaymentMethod(expense.payment_method || 'GPay')
+        setExistingMedia(expense.media || [])
+      } catch (err) {
+        setError('Failed to load expense details')
+      }
+    }
+    loadExpense()
+  }, [expenseId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setIsLoading(true)
 
     if (!purpose || !amount || !date) {
       setError('Please fill in required fields')
+      setIsLoading(false)
       return
     }
 
     const numAmount = parseFloat(amount)
     if (isNaN(numAmount) || numAmount <= 0) {
       setError('Amount must be a positive number')
+      setIsLoading(false)
       return
     }
 
     try {
-      if (expenseType === 'CASH') {
-        const expense = await createCashExpenseAsync({
-          purpose,
-          amount: numAmount,
-          date,
-          description: description || undefined,
-          location: location || undefined,
-        })
-        // Capture expense ID for file upload
-        if (expense?.id) {
-          setCreatedExpenseId(expense.id)
-        }
-      } else {
-        const expense = await createDigitalExpenseAsync({
-          purpose,
-          amount: numAmount,
-          paymentMethod,
-          date,
-          description: description || undefined,
-          location: location || undefined,
-        })
-        // Capture expense ID for file upload
-        if (expense?.id) {
-          setCreatedExpenseId(expense.id)
-        }
+      const updateData: any = {
+        purpose,
+        amount: numAmount,
+        date,
+        description: description || undefined,
+        location: location || undefined,
       }
 
-      // Reset form
-      setPurpose('')
-      setAmount('')
-      setDate(format(new Date(), 'yyyy-MM-dd'))
-      setLocation('')
-      setDescription('')
+      if (expenseType === 'DIGITAL') {
+        updateData.payment_method = paymentMethod
+      }
+
+      await expenseService.updateExpense(expenseId, updateData)
+      
+      if (onSuccess) onSuccess()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create expense')
+      setError(err.response?.data?.message || 'Failed to update expense')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleFileUploadSuccess = () => {
-    // After file upload, close the form
-    setCreatedExpenseId(null)
+    setShowFileUpload(false)
     if (onSuccess) onSuccess()
   }
 
-  const finishWithoutUpload = () => {
-    setCreatedExpenseId(null)
-    if (onSuccess) onSuccess()
+  const handleTypeChange = (newType: 'CASH' | 'DIGITAL') => {
+    setExpenseType(newType)
+    // Reset payment method when switching types
+    if (newType === 'CASH') {
+      setPaymentMethod('GPay')
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-      <h2 className="mb-6 text-xl font-semibold text-gray-900 dark:text-gray-100">
-        Add {expenseType === 'CASH' ? 'Cash' : 'Digital'} Expense
-      </h2>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Edit Expense
+        </h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+        >
+          ✕
+        </button>
+      </div>
 
       {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300">{error}</div>}
 
-      {type === undefined && (
-        <div className="mb-4">
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
+      <div className="space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Expense Type
           </label>
           <select
             value={expenseType}
-            onChange={(e) => setExpenseType(e.target.value as 'CASH' | 'DIGITAL')}
+            onChange={(e) => handleTypeChange(e.target.value as 'CASH' | 'DIGITAL')}
             className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-gray-300 dark:focus:ring-gray-700"
           >
             <option value="CASH">Cash</option>
             <option value="DIGITAL">Digital</option>
           </select>
         </div>
-      )}
 
-      <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
             Purpose *
@@ -207,51 +224,63 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isLoading || !!createdExpenseId}
-          className="h-11 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50 dark:focus:ring-blue-950"
-        >
-          {isLoading ? 'Adding...' : 'Add Expense'}
-        </button>
+        {/* Show existing media for digital expenses */}
+        {expenseType === 'DIGITAL' && existingMedia.length > 0 && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Attached Receipts:</p>
+            <div className="space-y-2">
+              {existingMedia.map((file) => (
+                <div key={file.id} className="flex items-center justify-between text-sm">
+                  <a
+                    href={file.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    📎 {file.file_name}
+                  </a>
+                  <span className="text-xs text-gray-500">({file.file_type})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex space-x-3">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex-1 h-11 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50 dark:focus:ring-blue-950"
+          >
+            {isLoading ? 'Updating...' : 'Update Expense'}
+          </button>
+          
+          {expenseType === 'DIGITAL' && (
+            <button
+              type="button"
+              onClick={() => setShowFileUpload(!showFileUpload)}
+              className="h-11 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+            >
+              {showFileUpload ? 'Cancel' : '📎 Add Receipt'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* File Upload Section - Show after DIGITAL expense created only */}
-      {createdExpenseId && expenseType === 'DIGITAL' && (
-        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/40">
-          <p className="mb-3 text-sm font-medium text-green-700 dark:text-green-300">
-            Digital expense saved. Please upload a screenshot or receipt for verification.
+      {/* File Upload Section for Digital Expenses */}
+      {showFileUpload && expenseType === 'DIGITAL' && (
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/40">
+          <p className="mb-3 text-sm font-medium text-blue-700 dark:text-blue-300">
+            Upload receipt or screenshot for this digital expense
           </p>
           <FileUpload
-            entityId={createdExpenseId}
+            entityId={expenseId}
             entityType="expense"
+            existingMedia={existingMedia}
             onFileUpload={handleFileUploadSuccess}
             onError={(err) => setError(err)}
             maxFiles={5}
           />
-          <button
-            type="button"
-            onClick={finishWithoutUpload}
-            className="mt-3 h-10 w-full rounded-xl border border-green-300 bg-white px-4 text-sm font-semibold text-green-800 transition hover:bg-green-100 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200 dark:hover:bg-green-950/60"
-          >
-            Done without upload
-          </button>
-        </div>
-      )}
-
-      {/* Cash expense completion message */}
-      {createdExpenseId && expenseType === 'CASH' && (
-        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/40">
-          <p className="text-sm font-medium text-green-700 dark:text-green-300">
-            Cash expense saved successfully!
-          </p>
-          <button
-            type="button"
-            onClick={finishWithoutUpload}
-            className="mt-3 h-10 w-full rounded-xl border border-green-300 bg-white px-4 text-sm font-semibold text-green-800 transition hover:bg-green-100 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200 dark:hover:bg-green-950/60"
-          >
-            Done
-          </button>
         </div>
       )}
     </form>

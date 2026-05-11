@@ -93,12 +93,24 @@ class TransactionService:
         total_count = query.count()
         transactions = query.order_by(Transaction.given_date.desc()).offset(offset).limit(limit).all()
         
-        # Load media for each transaction
+        # Load media in a single query to prevent N+1 problem
         from app.models import TransactionMedia
-        for transaction in transactions:
-            transaction.media = db.query(TransactionMedia).filter(
-                TransactionMedia.transaction_id == transaction.id
+        transaction_ids = [transaction.id for transaction in transactions]
+        media_map = {}
+        if transaction_ids:
+            media_records = db.query(TransactionMedia).filter(
+                TransactionMedia.transaction_id.in_(transaction_ids)
             ).all()
+            # Group media by transaction_id
+            media_map = {}
+            for media in media_records:
+                if media.transaction_id not in media_map:
+                    media_map[media.transaction_id] = []
+                media_map[media.transaction_id].append(media)
+        
+        # Attach media to transactions
+        for transaction in transactions:
+            transaction.media = media_map.get(transaction.id, [])
 
         return transactions, total_count
 

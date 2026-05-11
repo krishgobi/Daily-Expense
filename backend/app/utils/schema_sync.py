@@ -92,6 +92,47 @@ def run_schema_sync() -> None:
                 uploaded_at TIMESTAMP DEFAULT NOW() NOT NULL
             )
         """))
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS expenses (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                category_id UUID REFERENCES expense_categories(id) ON DELETE SET NULL,
+                type VARCHAR(20) DEFAULT 'CASH',
+                purpose VARCHAR(255) DEFAULT 'Unknown',
+                amount DOUBLE PRECISION DEFAULT 0,
+                description TEXT,
+                date DATE DEFAULT CURRENT_DATE,
+                location VARCHAR(255),
+                payment_method VARCHAR(50),
+                created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS expense_media (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                expense_id UUID REFERENCES expenses(id) ON DELETE CASCADE,
+                file_name VARCHAR(255) NOT NULL,
+                file_path VARCHAR(500) NOT NULL,
+                file_url VARCHAR(1000),
+                file_type VARCHAR(20),
+                file_size INTEGER,
+                uploaded_at TIMESTAMP DEFAULT NOW() NOT NULL
+            )
+        """))
+        
+        # Add performance indexes
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_expenses_created_at ON expenses(created_at DESC)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_expenses_type ON expenses(type)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_expenses_user_created ON expenses(user_id, created_at DESC)"))
+        
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(transaction_type)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_transactions_user_created ON transactions(user_id, created_at DESC)"))
+        
         for table_name in ("expense_media", "transaction_media"):
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS file_url VARCHAR(1000)"))
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS file_type VARCHAR(20)"))

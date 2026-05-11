@@ -119,11 +119,23 @@ class ExpenseService:
         total_count = query.count()
         expenses = query.order_by(Expense.date.desc()).offset(offset).limit(limit).all()
         
-        # Load media for each expense
-        for expense in expenses:
-            expense.media = db.query(ExpenseMedia).filter(
-                ExpenseMedia.expense_id == expense.id
+        # Load media in a single query to prevent N+1 problem
+        expense_ids = [expense.id for expense in expenses]
+        media_map = {}
+        if expense_ids:
+            media_records = db.query(ExpenseMedia).filter(
+                ExpenseMedia.expense_id.in_(expense_ids)
             ).all()
+            # Group media by expense_id
+            media_map = {}
+            for media in media_records:
+                if media.expense_id not in media_map:
+                    media_map[media.expense_id] = []
+                media_map[media.expense_id].append(media)
+        
+        # Attach media to expenses
+        for expense in expenses:
+            expense.media = media_map.get(expense.id, [])
 
         return expenses, total_count
 
