@@ -50,14 +50,11 @@ app.add_middleware(
 
 
 # Health Check Endpoint
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     """Health check endpoint for monitoring."""
-    return {
-        "status": "healthy",
-        "service": "Tracksy.AI API",
-        "version": settings.API_VERSION,
-    }
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content={"status": "ok"})
 
 
 # Include API routes
