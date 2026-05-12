@@ -22,6 +22,7 @@ export const MobileExpenseForm: React.FC<MobileExpenseFormProps> = ({
     location: initialData?.location || '',
     category_id: initialData?.category_id || '',
     payment_method: initialData?.payment_method || '',
+    screenshot: undefined as File | undefined,
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -169,7 +170,10 @@ export const MobileExpenseForm: React.FC<MobileExpenseFormProps> = ({
             type="file"
             id="screenshot"
             accept="image/*"
-            onChange={(e) => setFormData({ ...formData, screenshot: e.target.files?.[0] })}
+            onChange={(e) => {
+        const file = e.target.files?.[0]
+        setFormData({ ...formData, screenshot: file || undefined })
+      }}
             className="w-full px-4 py-3 border border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
             style={{ minHeight: '44px' }} // Touch-friendly minimum size
           />

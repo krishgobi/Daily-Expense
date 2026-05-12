@@ -88,7 +88,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
         </div>
         <div className="flex space-x-2">
           <button
-            onClick={() => onEdit(expense.id)}
+            onClick={() => onEdit?.(expense.id)}
             className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
             </svg>
           </button>
           <button
-            onClick={() => onDelete(expense.id)}
+            onClick={() => onDelete?.(expense.id)}
             className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
