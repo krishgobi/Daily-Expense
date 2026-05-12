@@ -17,7 +17,6 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { format, subDays, startOfWeek, startOfMonth, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns'
-import { Expense } from '../../hooks/useSupabaseExpenses'
 
 interface AnalyticsData {
   weeklyTrend: any[]
@@ -25,7 +24,7 @@ interface AnalyticsData {
   cashVsDigital: any[]
 }
 
-export const AnalyticsDashboard: React.FC = () => {
+export const OptimizedAnalyticsDashboard: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'quarter'>('week')
   const { data: expenses, isLoading } = useSupabaseExpenses()
   const { transactions } = useTransactions()
@@ -60,7 +59,7 @@ export const AnalyticsDashboard: React.FC = () => {
     }
 
     // Filter expenses by date range
-    const filteredExpenses = expenses.filter(expense => 
+    const filteredExpenses = expenses.filter((expense: any) => 
       new Date(expense.date) >= startDate
     )
 
@@ -73,7 +72,7 @@ export const AnalyticsDashboard: React.FC = () => {
       trendMap.set(dateKey, { date: dateKey, amount: 0, cash: 0, digital: 0 })
     })
 
-    filteredExpenses.forEach((expense: Expense) => {
+    filteredExpenses.forEach((expense: any) => {
       const dateKey = format(new Date(expense.date), dateFormat)
       const existing = trendMap.get(dateKey) || { date: dateKey, amount: 0, cash: 0, digital: 0 }
       existing.amount += expense.amount
@@ -89,7 +88,7 @@ export const AnalyticsDashboard: React.FC = () => {
 
     // Category breakdown
     const categoryMap = new Map()
-    filteredExpenses.forEach((expense: Expense) => {
+    filteredExpenses.forEach((expense: any) => {
       const category = expense.purpose || 'Other'
       const existing = categoryMap.get(category) || { name: category, value: 0 }
       existing.value += expense.amount
@@ -97,17 +96,17 @@ export const AnalyticsDashboard: React.FC = () => {
     })
 
     const categoryBreakdown = Array.from(categoryMap.values())
-      .sort((a, b) => b.value - a.value)
+      .sort((a: any, b: any) => b.value - a.value)
       .slice(0, 10) // Top 10 categories
 
     // Cash vs Digital breakdown
     const cashTotal = filteredExpenses
-      .filter((e: Expense) => e.type === 'CASH')
-      .reduce((sum: number, e: Expense) => sum + e.amount, 0)
+      .filter((e: any) => e.type === 'CASH')
+      .reduce((sum: number, e: any) => sum + e.amount, 0)
     
     const digitalTotal = filteredExpenses
-      .filter((e: Expense) => e.type === 'DIGITAL')
-      .reduce((sum: number, e: Expense) => sum + e.amount, 0)
+      .filter((e: any) => e.type === 'DIGITAL')
+      .reduce((sum: number, e: any) => sum + e.amount, 0)
 
     const cashVsDigital = [
       { name: 'Cash', value: cashTotal, color: '#10b981' },
@@ -125,15 +124,6 @@ export const AnalyticsDashboard: React.FC = () => {
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
 
-  // Show loading state while data is being fetched
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -141,13 +131,22 @@ export const AnalyticsDashboard: React.FC = () => {
           <p className="font-medium text-gray-900 dark:text-gray-100">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: ₹{entry.value.toFixed(2)}
+              {entry.name}: ${entry.value.toFixed(2)}
             </p>
           ))}
         </div>
       )
     }
     return null
+  }
+
+  // Show loading state while data is being fetched
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -181,7 +180,7 @@ export const AnalyticsDashboard: React.FC = () => {
             Total Expenses
           </h3>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            ₹{data.weeklyTrend.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}
+            ${data.weeklyTrend.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-gray-200 dark:bg-gray-900 dark:border-gray-700">
@@ -189,7 +188,7 @@ export const AnalyticsDashboard: React.FC = () => {
             Cash Expenses
           </h3>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-            ₹{data.cashVsDigital[0]?.value.toFixed(2) || '0.00'}
+            ${data.cashVsDigital[0]?.value.toFixed(2) || '0.00'}
           </p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-gray-200 dark:bg-gray-900 dark:border-gray-700">
@@ -197,7 +196,7 @@ export const AnalyticsDashboard: React.FC = () => {
             Digital Expenses
           </h3>
           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            ₹{data.cashVsDigital[1]?.value.toFixed(2) || '0.00'}
+            ${data.cashVsDigital[1]?.value.toFixed(2) || '0.00'}
           </p>
         </div>
       </div>
@@ -294,7 +293,7 @@ export const AnalyticsDashboard: React.FC = () => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {data.cashVsDigital.map((entry, index) => (
+                {data.cashVsDigital.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
@@ -313,7 +312,7 @@ export const AnalyticsDashboard: React.FC = () => {
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Money Borrowed</p>
             <p className="text-xl font-semibold text-red-600 dark:text-red-400">
-              ₹{transactions
+              ${transactions
                 .filter((t: any) => t.transaction_type === 'BORROWED')
                 .reduce((sum: number, t: any) => sum + t.amount, 0)
                 .toFixed(2)}
@@ -322,7 +321,7 @@ export const AnalyticsDashboard: React.FC = () => {
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Money Lent</p>
             <p className="text-xl font-semibold text-green-600 dark:text-green-400">
-              ₹{transactions
+              ${transactions
                 .filter((t: any) => t.transaction_type === 'LENT')
                 .reduce((sum: number, t: any) => sum + t.amount, 0)
                 .toFixed(2)}
@@ -331,7 +330,7 @@ export const AnalyticsDashboard: React.FC = () => {
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
             <p className="text-xl font-semibold text-orange-600 dark:text-orange-400">
-              ₹{transactions
+              ${transactions
                 .filter((t: any) => t.status === 'PENDING')
                 .reduce((sum: number, t: any) => sum + t.amount, 0)
                 .toFixed(2)}

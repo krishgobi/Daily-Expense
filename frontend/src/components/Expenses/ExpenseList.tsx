@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useExpenses } from '../../hooks/useExpenses'
+import { useSupabaseExpenses, useDeleteSupabaseExpense } from '../../hooks/useSupabaseExpenses'
 import { FileUpload } from '../Common/FileUpload'
 import { format } from 'date-fns'
 import { MediaFile } from '../../services/expenseService'
@@ -20,11 +20,13 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
   const [uploadingForId, setUploadingForId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
 
-  const { expenses, total, isLoading, deleteExpense, isDeleting } = useExpenses({
+  const { data: expenses, total, isLoading } = useSupabaseExpenses({
     type,
     limit,
     offset,
   })
+
+  const { deleteExpense, isDeleting } = useDeleteSupabaseExpense()
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
@@ -73,7 +75,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
       </div>
 
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {expenses.map((expense) => (
+            {expenses.slice(0, 5).map((expense) => (
               <div key={expense.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors">
                 <div className="cursor-pointer" onClick={() => toggleExpand(expense.id)}>
                   {/* Mobile layout - stacked */}
@@ -90,7 +92,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
                           {expense.type}
                         </span>
                         <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          ₹{expense.amount.toFixed(2)}
+                          ${expense.amount.toFixed(2)}
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -146,7 +148,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        ₹{expense.amount.toFixed(2)}
+                        ${expense.amount.toFixed(2)}
                       </div>
                       <button
                         onClick={(e) => {
