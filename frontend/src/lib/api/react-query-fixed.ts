@@ -6,12 +6,20 @@ export const queryClientConfig: QueryClientConfig = {
     queries: {
       // Cache queries for 5 minutes by default
       staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 3, // Retry up to 3 times
+      retry: (failureCount: number, error: unknown) => {
+        // Retry failed queries up to 3 times
+        if (failureCount < 3) return failureCount + 1
+        return 3
+      },
       refetchOnWindowFocus: true, // Refetch when window gains focus
       refetchOnReconnect: true, // Refetch when internet reconnects
     },
     mutations: {
-      retry: 2, // Retry up to 2 times
+      retry: (failureCount: number, error: unknown) => {
+        // Retry failed mutations up to 2 times
+        if (failureCount < 2) return failureCount + 1
+        return 2
+      },
     },
   },
 }
@@ -51,24 +59,16 @@ export const analyticsKeys = {
   reports: 'analytics-reports',
 }
 
-// Query invalidation keys
-export const queryKeys = {
-  expenses: expenseKeys,
-  transactions: transactionKeys,
-  analytics: analyticsKeys,
-  categories: expenseKeys.categories,
-}
-
 // Helper functions for query invalidation
 export const queryInvalidation = {
-  invalidateExpenses: () => [expenseKeys.all, expenseKeys.lists({})],
+  invalidateExpenses: () => [expenseKeys.all, expenseKeys.lists()],
   invalidateExpenseDetail: (id: string) => [expenseKeys.detail(id)],
   invalidateExpensesSummary: () => [
     expenseKeys.summary.today,
     expenseKeys.summary.week,
     expenseKeys.summary.month,
   ],
-  invalidateTransactions: () => [transactionKeys.all, transactionKeys.lists({})],
+  invalidateTransactions: () => [transactionKeys.all, transactionKeys.lists()],
   invalidateTransactionDetail: (id: string) => [transactionKeys.detail(id)],
   invalidateTransactionsSummary: () => [
     transactionKeys.summary.pending,

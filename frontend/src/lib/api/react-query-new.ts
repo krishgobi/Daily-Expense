@@ -52,23 +52,15 @@ export const analyticsKeys = {
 }
 
 // Query invalidation keys
-export const queryKeys = {
-  expenses: expenseKeys,
-  transactions: transactionKeys,
-  analytics: analyticsKeys,
-  categories: expenseKeys.categories,
-}
-
-// Helper functions for query invalidation
 export const queryInvalidation = {
-  invalidateExpenses: () => [expenseKeys.all, expenseKeys.lists({})],
+  invalidateExpenses: () => [expenseKeys.all, expenseKeys.lists()],
   invalidateExpenseDetail: (id: string) => [expenseKeys.detail(id)],
   invalidateExpensesSummary: () => [
     expenseKeys.summary.today,
     expenseKeys.summary.week,
     expenseKeys.summary.month,
   ],
-  invalidateTransactions: () => [transactionKeys.all, transactionKeys.lists({})],
+  invalidateTransactions: () => [transactionKeys.all, transactionKeys.lists()],
   invalidateTransactionDetail: (id: string) => [transactionKeys.detail(id)],
   invalidateTransactionsSummary: () => [
     transactionKeys.summary.pending,
