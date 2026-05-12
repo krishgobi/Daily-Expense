@@ -1,6 +1,7 @@
 import React from 'react'
 import { Line, LineChart, LineChart as RechartsLineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
-import { formatCurrency, formatDate } from '../../../lib/utils'
+import { cn } from '../../lib/utils'
+import { formatCurrency, formatDate } from '../../lib/utils'
 
 interface MobileExpenseChartProps {
   data: Array<{
