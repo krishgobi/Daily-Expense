@@ -1,7 +1,8 @@
 import { type ClassValue, clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
-  return clsx(inputs)
+  return twMerge(clsx(inputs))
 }
 
 export function formatCurrency(amount: number): string {
@@ -17,15 +18,4 @@ export function formatDate(date: string): string {
     month: 'short',
     day: 'numeric',
   })
-}
-
-export function debounce<T extends (...args: any[]) => (
-  func: (...args: any[]) => T,
-  wait: number
-): ((...args: any[]) => T) => {
-  let timeoutId: NodeJS.Timeout
-  return (...args: any[]) => {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => func(...args), wait)
-  }
 }
