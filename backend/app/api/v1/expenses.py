@@ -79,10 +79,10 @@ async def list_expenses(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """List expenses with filters."""
+    """List expenses with filters and pagination."""
     try:
         user_uuid = UUID(user_id)
-        expenses, total = ExpenseService.list_expenses(
+        result = ExpenseService.list_expenses(
             db,
             user_uuid,
             expense_type,
@@ -94,11 +94,14 @@ async def list_expenses(
         )
         return {
             "status": "success",
-            "data": [ExpenseResponse.from_orm(e) for e in expenses],
-            "meta": {
-                "total": total,
-                "limit": limit,
-                "offset": offset,
+            "data": [ExpenseResponse.from_orm(e) for e in result["data"]],
+            "pagination": {
+                "total": result["total"],
+                "limit": result["limit"],
+                "offset": result["offset"],
+                "has_more": result["has_more"],
+                "page": result["page"],
+                "total_pages": result["total_pages"],
             },
             "message": "Expenses retrieved successfully",
         }

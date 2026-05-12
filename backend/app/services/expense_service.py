@@ -100,10 +100,20 @@ class ExpenseService:
         date_to: date = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[list[Expense], int]:
-        """List expenses with filters."""
+    ) -> dict:
+        """List expenses with filters and pagination."""
+        # Validate pagination parameters
+        if limit < 1:
+            limit = 1
+        if limit > 50:
+            limit = 50  # Maximum limit for performance
+        if offset < 0:
+            offset = 0
+
+        # Build base query with user filter (always applied for security)
         query = db.query(Expense).filter(Expense.user_id == user_id)
 
+        # Apply filters efficiently
         if expense_type:
             query = query.filter(Expense.type == expense_type)
 
@@ -116,28 +126,39 @@ class ExpenseService:
         if date_to:
             query = query.filter(Expense.date <= date_to)
 
+        # Get total count for pagination info
         total_count = query.count()
+
+        # Apply pagination with index-friendly ordering
         expenses = query.order_by(Expense.date.desc()).offset(offset).limit(limit).all()
         
-        # Load media in a single query to prevent N+1 problem
-        expense_ids = [expense.id for expense in expenses]
-        media_map = {}
-        if expense_ids:
+        # Load media efficiently to prevent N+1 problem
+        if expenses:
+            expense_ids = [expense.id for expense in expenses]
             media_records = db.query(ExpenseMedia).filter(
                 ExpenseMedia.expense_id.in_(expense_ids)
             ).all()
+            
             # Group media by expense_id
             media_map = {}
             for media in media_records:
                 if media.expense_id not in media_map:
                     media_map[media.expense_id] = []
                 media_map[media.expense_id].append(media)
-        
-        # Attach media to expenses
-        for expense in expenses:
-            expense.media = media_map.get(expense.id, [])
+            
+            # Attach media to expenses
+            for expense in expenses:
+                expense.media = media_map.get(expense.id, [])
 
-        return expenses, total_count
+        return {
+            "data": expenses,
+            "total": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total_count,
+            "page": (offset // limit) + 1,
+            "total_pages": (total_count + limit - 1) // limit
+        }
 
     @staticmethod
     def update_expense(
