@@ -1,43 +1,43 @@
 import React from 'react'
+import { cn } from '../../lib/utils'
 
+/* ─── Base Skeleton ──────────────────────────────────────────────────────── */
 interface SkeletonProps {
   className?: string
-  variant?: 'text' | 'circular' | 'rectangular' | 'rounded'
-  width?: string | number
-  height?: string | number
-  lines?: number
+  variant?:   'text' | 'circular' | 'rectangular' | 'rounded'
+  width?:     string | number
+  height?:    string | number
+  lines?:     number
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
   className = '',
-  variant = 'text',
+  variant   = 'text',
   width,
   height,
-  lines = 1,
+  lines     = 1,
 }) => {
-  const baseClasses = 'animate-pulse bg-gray-200 dark:bg-gray-700'
+  const base = 'animate-pulse bg-gray-200 dark:bg-gray-700/60'
 
-  const variantClasses = {
-    text: 'h-4 rounded',
-    circular: 'rounded-full',
+  const variantClass = {
+    text:        'h-4 rounded',
+    circular:    'rounded-full',
     rectangular: '',
-    rounded: 'rounded-lg',
-  }
+    rounded:     'rounded-xl',
+  }[variant]
 
   const style = {
-    width: width || (variant === 'text' ? '100%' : '40px'),
+    width:  width  || (variant === 'text' ? '100%' : '40px'),
     height: height || (variant === 'text' ? '1rem' : '40px'),
   }
 
   if (variant === 'text' && lines > 1) {
     return (
-      <div className={`space-y-2 ${className}`}>
-        {Array.from({ length: lines }).map((_, index) => (
+      <div className={cn('space-y-2', className)}>
+        {Array.from({ length: lines }).map((_, i) => (
           <div
-            key={index}
-            className={`${baseClasses} ${variantClasses.text} ${
-              index === lines - 1 ? 'w-3/4' : 'w-full'
-            }`}
+            key={i}
+            className={cn(base, variantClass, i === lines - 1 ? 'w-3/4' : 'w-full')}
             style={style}
           />
         ))}
@@ -45,110 +45,77 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     )
   }
 
-  return (
-    <div
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
-      style={style}
-    />
-  )
+  return <div className={cn(base, variantClass, className)} style={style} />
 }
 
-// Card skeleton for expense list
-export const ExpenseCardSkeleton: React.FC = () => {
-  return (
-    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4 flex-1">
-          <Skeleton width="80px" height="20px" />
-          <Skeleton width="120px" height="20px" />
-          <Skeleton width="60px" height="24px" variant="rounded" />
-        </div>
-        <div className="flex items-center space-x-4">
-          <Skeleton width="80px" height="24px" />
-          <Skeleton width="60px" height="36px" variant="rounded" />
-          <Skeleton width="40px" height="36px" variant="rounded" />
-        </div>
-      </div>
+/* ─── Expense card skeleton ──────────────────────────────────────────────── */
+export const ExpenseCardSkeleton: React.FC = () => (
+  <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 animate-pulse">
+    <div className="h-8 w-8 rounded-xl bg-gray-200 dark:bg-gray-700/60 shrink-0" />
+    <div className="flex-1 space-y-1.5">
+      <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-700/60" />
+      <div className="h-3 w-24 rounded bg-gray-100 dark:bg-gray-800/60" />
     </div>
-  )
-}
-
-// Transaction card skeleton
-export const TransactionCardSkeleton: React.FC = () => {
-  return (
-    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <Skeleton width="40px" height="40px" variant="circular" />
-          <div>
-            <Skeleton width="120px" height="20px" />
-            <Skeleton width="80px" height="16px" className="mt-1" />
-          </div>
-        </div>
-        <Skeleton width="80px" height="24px" />
-      </div>
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <Skeleton width="60px" height="16px" />
-          <Skeleton width="100px" height="16px" className="mt-1" />
-        </div>
-        <div>
-          <Skeleton width="70px" height="16px" />
-          <Skeleton width="90px" height="16px" className="mt-1" />
-        </div>
-      </div>
+    <div className="flex items-center gap-3 shrink-0">
+      <div className="h-5 w-14 rounded-full bg-gray-100 dark:bg-gray-800/60" />
+      <div className="h-4 w-16 rounded bg-gray-200 dark:bg-gray-700/60" />
     </div>
-  )
-}
+  </div>
+)
 
-// Summary card skeleton
-export const SummaryCardSkeleton: React.FC = () => {
-  return (
-    <div className="p-6 bg-white rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-900">
-      <Skeleton width="120px" height="20px" className="mb-4" />
-      <Skeleton width="80px" height="32px" />
-      <Skeleton width="140px" height="16px" className="mt-2" />
+/* ─── Transaction card skeleton ──────────────────────────────────────────── */
+export const TransactionCardSkeleton: React.FC = () => (
+  <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 animate-pulse">
+    <div className="h-8 w-8 rounded-xl bg-gray-200 dark:bg-gray-700/60 shrink-0" />
+    <div className="flex-1 space-y-1.5">
+      <div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700/60" />
+      <div className="h-3 w-20 rounded bg-gray-100 dark:bg-gray-800/60" />
     </div>
-  )
-}
+    <div className="flex items-center gap-3 shrink-0">
+      <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800/60" />
+      <div className="h-4 w-16 rounded bg-gray-200 dark:bg-gray-700/60" />
+    </div>
+  </div>
+)
 
-// Dashboard skeleton loader
-export const DashboardSkeleton: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <SummaryCardSkeleton />
-        <SummaryCardSkeleton />
-        <SummaryCardSkeleton />
+/* ─── Summary card skeleton ──────────────────────────────────────────────── */
+export const SummaryCardSkeleton: React.FC = () => (
+  <div className="card p-5 space-y-3 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-700/60" />
+      <div className="h-8 w-8 rounded-xl bg-gray-100 dark:bg-gray-800/60" />
+    </div>
+    <div className="h-7 w-28 rounded bg-gray-200 dark:bg-gray-700/60" />
+    <div className="h-3 w-16 rounded bg-gray-100 dark:bg-gray-800/60" />
+  </div>
+)
+
+/* ─── Dashboard skeleton ─────────────────────────────────────────────────── */
+export const DashboardSkeleton: React.FC = () => (
+  <div className="space-y-6">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <SummaryCardSkeleton />
+      <SummaryCardSkeleton />
+      <SummaryCardSkeleton />
+    </div>
+    <div className="card overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="h-5 w-36 animate-pulse rounded bg-gray-200 dark:bg-gray-700/60" />
       </div>
+      {Array.from({ length: 5 }).map((_, i) => <ExpenseCardSkeleton key={i} />)}
+    </div>
+  </div>
+)
 
-      {/* Recent expenses */}
-      <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <Skeleton width="150px" height="24px" />
-        </div>
-        <div>
-          {Array.from({ length: 5 }).map((_, index) => (
-            <ExpenseCardSkeleton key={index} />
-          ))}
-        </div>
+/* ─── Form skeleton ──────────────────────────────────────────────────────── */
+export const FormSkeleton: React.FC = () => (
+  <div className="space-y-4 animate-pulse">
+    {Array.from({ length: 4 }).map((_, i) => (
+      <div key={i} className="space-y-1.5">
+        <div className="h-3.5 w-24 rounded bg-gray-200 dark:bg-gray-700/60" />
+        <div className="h-11 w-full rounded-xl bg-gray-100 dark:bg-gray-800/60" />
       </div>
-    </div>
-  )
-}
-
-// Form skeleton loader
-export const FormSkeleton: React.FC = () => {
-  return (
-    <div className="space-y-4">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="space-y-2">
-          <Skeleton width="100px" height="16px" />
-          <Skeleton height="48px" variant="rounded" />
-        </div>
-      ))}
-      <Skeleton width="120px" height="48px" variant="rounded" />
-    </div>
-  )
-}
+    ))}
+    <div className="h-11 w-full rounded-xl bg-gray-200 dark:bg-gray-700/60" />
+  </div>
+)

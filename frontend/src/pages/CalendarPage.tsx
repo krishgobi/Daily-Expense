@@ -1,145 +1,148 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react'
 import { useMonthEvents, useOverdueEvents } from '../hooks/useCalendar'
 import { AppShell } from '../components/Layout/AppShell'
+import { Badge } from '../components/UI/Badge'
+import { cn } from '../lib/utils'
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export const CalendarPage: React.FC = () => {
   const navigate = useNavigate()
-  const today = new Date()
-  const [currentYear, setCurrentYear] = useState(today.getFullYear())
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1)
+  const today    = new Date()
+  const [year,  setYear]  = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth() + 1)
 
-  const { events, overdue, monthName, isLoading } = useMonthEvents(currentYear, currentMonth)
+  const { events, overdue, monthName, isLoading } = useMonthEvents(year, month)
   const { overdue: overdueEvents } = useOverdueEvents()
 
-  const handlePrevMonth = () => {
-    if (currentMonth === 1) {
-      setCurrentMonth(12)
-      setCurrentYear(currentYear - 1)
-    } else {
-      setCurrentMonth(currentMonth - 1)
-    }
-  }
+  const prevMonth = () => { if (month === 1) { setMonth(12); setYear(year - 1) } else setMonth(month - 1) }
+  const nextMonth = () => { if (month === 12) { setMonth(1); setYear(year + 1) } else setMonth(month + 1) }
 
-  const handleNextMonth = () => {
-    if (currentMonth === 12) {
-      setCurrentMonth(1)
-      setCurrentYear(currentYear + 1)
-    } else {
-      setCurrentMonth(currentMonth + 1)
-    }
-  }
-
-  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
-  const firstDayOfMonth = new Date(currentYear, currentMonth - 1, 1).getDay()
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
-  const emptyDays = Array.from({ length: firstDayOfMonth }, (_, i) => i)
-
-  const handleNavigateToTransaction = (transactionId: string) => {
-    navigate(`/transactions/${transactionId}`)
-  }
-
-  const isToday = (day: number) => {
-    return day === today.getDate() && currentMonth === today.getMonth() + 1 && currentYear === today.getFullYear()
-  }
+  const daysInMonth   = new Date(year, month, 0).getDate()
+  const firstDayOfMonth = new Date(year, month - 1, 1).getDay()
+  const isToday = (d: number) => d === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()
 
   return (
     <AppShell>
-      <div className="space-y-8">
-        <section>
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-100">
-            Calendar
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Track due dates and overdue money movements.
-          </p>
-        </section>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="page-title">Calendar</h1>
+          <p className="page-subtitle">Track due dates and overdue money movements.</p>
+        </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Calendar */}
           <div className="lg:col-span-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-              {/* Month Navigation */}
-              <div className="flex items-center justify-between mb-6">
+            <div className="card overflow-hidden">
+              {/* Month nav */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
                 <button
-                  onClick={handlePrevMonth}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  onClick={prevMonth}
+                  className="btn-ghost h-8 w-8 p-0"
+                  aria-label="Previous month"
                 >
-                  ← Previous
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {monthName} {currentYear}
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  {monthName} {year}
                 </h2>
                 <button
-                  onClick={handleNextMonth}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  onClick={nextMonth}
+                  className="btn-ghost h-8 w-8 p-0"
+                  aria-label="Next month"
                 >
-                  Next →
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Weekdays Header */}
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                  <div key={day} className="py-2 text-center font-semibold text-gray-600 dark:text-gray-400">
-                    {day}
-                  </div>
-                ))}
-              </div>
+              <div className="p-4">
+                {/* Weekday headers */}
+                <div className="grid grid-cols-7 mb-2">
+                  {WEEKDAYS.map((d) => (
+                    <div key={d} className="py-2 text-center text-xs font-semibold text-gray-400 dark:text-gray-500">
+                      {d}
+                    </div>
+                  ))}
+                </div>
 
-              {/* Calendar Days */}
-              <div className="grid grid-cols-7 gap-2">
-                {emptyDays.map((_, idx) => (
-                  <div key={`empty-${idx}`} className="aspect-square"></div>
-                ))}
+                {/* Days grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {/* Empty cells */}
+                  {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                    <div key={`e-${i}`} />
+                  ))}
 
-                {days.map((day) => (
-                  <div
-                    key={day}
-                    className={`aspect-square overflow-hidden rounded-xl border p-2 transition hover:shadow-md ${
-                      isToday(day)
-                        ? 'bg-blue-100 border-blue-400 dark:bg-blue-950/60 dark:border-blue-700'
-                        : events[day]
-                        ? 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950/30 dark:border-yellow-800'
-                        : 'bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-700'
-                    }`}
-                  >
-                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{day}</div>
-                    {events[day] && (
-                      <div className="mt-1 space-y-1">
-                        {events[day].slice(0, 2).map((event, idx) => (
+                  {/* Day cells */}
+                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+                    const dayEvents = events[day] || []
+                    const hasEvents = dayEvents.length > 0
+                    const todayCell = isToday(day)
+
+                    return (
+                      <div
+                        key={day}
+                        className={cn(
+                          'min-h-[52px] rounded-xl border p-1.5 transition',
+                          todayCell
+                            ? 'border-brand-400 bg-brand-50 dark:border-brand-600 dark:bg-brand-950/40'
+                            : hasEvents
+                            ? 'border-amber-200 bg-amber-50/60 dark:border-amber-800/60 dark:bg-amber-950/20'
+                            : 'border-gray-100 bg-white hover:border-gray-200 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700',
+                        )}
+                      >
+                        <span className={cn(
+                          'flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium',
+                          todayCell
+                            ? 'bg-brand-600 text-white'
+                            : 'text-gray-700 dark:text-gray-300',
+                        )}>
+                          {day}
+                        </span>
+
+                        {dayEvents.slice(0, 2).map((ev, idx) => (
                           <button
                             key={idx}
-                            onClick={() => handleNavigateToTransaction(event.id)}
-                            className={`text-xs w-full text-left px-1 py-0.5 rounded cursor-pointer truncate ${
-                              event.is_overdue
-                                ? 'bg-red-200 text-red-800 hover:bg-red-300'
-                                : event.type === 'BORROWED'
-                                ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                : 'bg-green-100 text-green-700 hover:bg-green-200'
-                            }`}
-                            title={`${event.person}: ₹${event.amount}`}
+                            onClick={() => navigate(`/transactions/${ev.id}`)}
+                            title={`${ev.person}: ₹${ev.amount}`}
+                            className={cn(
+                              'mt-0.5 w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium transition',
+                              ev.is_overdue
+                                ? 'bg-red-200 text-red-800 hover:bg-red-300 dark:bg-red-900/60 dark:text-red-300'
+                                : ev.type === 'BORROWED'
+                                ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-400'
+                                : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400',
+                            )}
                           >
-                            {event.person.split(' ')[0]}
+                            {ev.person.split(' ')[0]}
                           </button>
                         ))}
-                        {events[day].length > 2 && (
-                          <div className="px-1 text-xs text-gray-600 dark:text-gray-400">+{events[day].length - 2} more</div>
+                        {dayEvents.length > 2 && (
+                          <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400 px-1">
+                            +{dayEvents.length - 2}
+                          </p>
                         )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    )
+                  })}
+                </div>
               </div>
 
-              {/* Overdue Section */}
+              {/* Overdue this month */}
               {overdue.length > 0 && (
-                <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/70 dark:bg-red-950/40">
-                  <h3 className="mb-2 font-semibold text-red-900 dark:text-red-200">Overdue Items This Month</h3>
+                <div className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <h3 className="text-sm font-semibold text-red-900 dark:text-red-200">
+                      Overdue this month
+                    </h3>
+                  </div>
                   <div className="space-y-1">
-                    {overdue.map((item, idx) => (
-                      <p key={idx} className="text-sm text-red-800 dark:text-red-300">
-                        {item.person}: ₹{item.amount.toFixed(2)} ({item.overdue_days} days overdue)
+                    {overdue.map((item, i) => (
+                      <p key={i} className="text-xs text-red-700 dark:text-red-300">
+                        {item.person}: ₹{item.amount.toFixed(2)} — {item.overdue_days} days overdue
                       </p>
                     ))}
                   </div>
@@ -148,29 +151,50 @@ export const CalendarPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Sidebar - Overdue Alerts */}
-          <div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Overdue</h3>
+          {/* Sidebar */}
+          <div className="space-y-4">
+            {/* Legend */}
+            <div className="card p-4 space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Legend</h3>
+              <div className="space-y-1.5">
+                {[
+                  { color: 'bg-red-100 dark:bg-red-950/40', label: 'Borrowed' },
+                  { color: 'bg-emerald-100 dark:bg-emerald-950/40', label: 'Lent' },
+                  { color: 'bg-red-200 dark:bg-red-900/60', label: 'Overdue' },
+                ].map(({ color, label }) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <span className={cn('h-3 w-3 rounded', color)} />
+                    <span className="text-xs text-gray-600 dark:text-gray-400">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Overdue alerts */}
+            <div className="card p-4">
+              <h3 className="section-title mb-3">All Overdue</h3>
               {overdueEvents.length > 0 ? (
-                <div className="space-y-3">
-                  {overdueEvents.slice(0, 5).map((event) => (
+                <div className="space-y-2">
+                  {overdueEvents.slice(0, 6).map((ev) => (
                     <button
-                      key={event.id}
-                      onClick={() => handleNavigateToTransaction(event.id)}
-                      className="w-full rounded-xl border border-red-200 bg-red-50 p-3 text-left transition hover:bg-red-100 dark:border-red-900/70 dark:bg-red-950/40 dark:hover:bg-red-950/60"
+                      key={ev.id}
+                      onClick={() => navigate(`/transactions/${ev.id}`)}
+                      className="w-full rounded-xl border border-red-200 bg-red-50 p-3 text-left transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:hover:bg-red-950/50"
                     >
-                      <p className="text-sm font-semibold text-red-900 dark:text-red-200">{event.person}</p>
-                      <p className="mt-1 text-xs text-red-700 dark:text-red-300">₹{event.amount.toFixed(2)}</p>
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{event.overdue_days} days overdue</p>
+                      <p className="text-sm font-semibold text-red-900 dark:text-red-200">{ev.person}</p>
+                      <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
+                        ₹{ev.amount.toFixed(2)} · {ev.overdue_days}d overdue
+                      </p>
                     </button>
                   ))}
-                  {overdueEvents.length > 5 && (
-                    <p className="text-center text-xs text-gray-600 dark:text-gray-400">+{overdueEvents.length - 5} more overdue</p>
+                  {overdueEvents.length > 6 && (
+                    <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                      +{overdueEvents.length - 6} more
+                    </p>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-gray-600 dark:text-gray-400">No overdue items</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">No overdue items 🎉</p>
               )}
             </div>
           </div>

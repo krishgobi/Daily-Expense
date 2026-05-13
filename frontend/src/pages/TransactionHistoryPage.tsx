@@ -1,121 +1,90 @@
 import React, { useState } from 'react'
-import { useTransactions } from '../hooks/useTransactions'
+import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { TransactionForm } from '../components/Transactions/TransactionForm'
 import { TransactionList } from '../components/Transactions/TransactionList'
 import { AppShell } from '../components/Layout/AppShell'
+import { Modal } from '../components/UI/Modal'
+import { cn } from '../lib/utils'
 
 type TransactionType = 'BORROWED' | 'LENT' | 'ALL'
-type FormMode = null | 'borrowed' | 'lent'
+type FormMode        = null | 'borrowed' | 'lent'
+
+const tabs: { id: TransactionType; label: string }[] = [
+  { id: 'ALL',      label: 'All' },
+  { id: 'BORROWED', label: 'I Borrowed' },
+  { id: 'LENT',     label: 'I Lent' },
+]
 
 export const TransactionHistoryPage: React.FC = () => {
-  const [transactionType, setTransactionType] = useState<TransactionType>('ALL')
-  const [formMode, setFormMode] = useState<FormMode>(null)
-
-  const getFilteredTransactions = () => {
-    if (transactionType === 'ALL') return {}
-    return { type: transactionType }
-  }
+  const [activeTab, setActiveTab] = useState<TransactionType>('ALL')
+  const [formMode, setFormMode]   = useState<FormMode>(null)
 
   return (
     <AppShell>
-      <div className="space-y-10">
-        <section>
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-100">
-            Transaction History
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Complete history of money borrowed and lent with full details and receipts.
-          </p>
-        </section>
-
-        {/* Filter Tabs */}
-        <section>
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setTransactionType('ALL')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  transactionType === 'ALL'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                All Transactions
-              </button>
-              <button
-                onClick={() => setTransactionType('BORROWED')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  transactionType === 'BORROWED'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                Money I Borrowed
-              </button>
-              <button
-                onClick={() => setTransactionType('LENT')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  transactionType === 'LENT'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                Money I Lent
-              </button>
-            </nav>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="page-title">Transactions</h1>
+            <p className="page-subtitle">Track money you've borrowed and lent.</p>
           </div>
-        </section>
-
-        {/* Quick Actions */}
-        <section>
-          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
+          <div className="flex gap-2">
             <button
               onClick={() => setFormMode('borrowed')}
-              className="rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-200 dark:focus:ring-red-950"
+              className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/40 active:scale-[0.98]"
             >
-              I Borrowed Money
+              <ArrowDownLeft className="h-4 w-4" />
+              I Borrowed
             </button>
             <button
               onClick={() => setFormMode('lent')}
-              className="rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-300 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white dark:focus:ring-gray-700"
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 active:scale-[0.98]"
             >
-              I Lent Money
+              <ArrowUpRight className="h-4 w-4" />
+              I Lent
             </button>
           </div>
-        </section>
+        </div>
 
-        {/* Forms */}
-        {formMode && (
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/30">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-950 dark:text-gray-100">
-                {formMode === 'borrowed' && 'I Borrowed Money'}
-                {formMode === 'lent' && 'I Lent Money'}
-              </h3>
-              <button
-                onClick={() => setFormMode(null)}
-                className="rounded-lg px-2 text-xl text-gray-500 transition hover:bg-white hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-              >
-                ✕
-              </button>
-            </div>
+        {/* Tab filter */}
+        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
+          {tabs.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                'px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px',
+                activeTab === id
+                  ? 'border-brand-600 text-brand-600 dark:border-brand-400 dark:text-brand-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-            <TransactionForm
-              type={formMode === 'borrowed' ? 'BORROWED' : 'LENT'}
-              onSuccess={() => setFormMode(null)}
-            />
-          </div>
-        )}
-
-        {/* Transaction List */}
-        <section>
-          <TransactionList 
-            type={transactionType === 'ALL' ? undefined : transactionType}
-            status={undefined}
-          />
-        </section>
+        {/* List */}
+        <TransactionList
+          type={activeTab === 'ALL' ? undefined : activeTab}
+          status={undefined}
+        />
       </div>
+
+      {/* Form modal */}
+      <Modal
+        open={!!formMode}
+        onClose={() => setFormMode(null)}
+        title={formMode === 'borrowed' ? 'I Borrowed Money' : 'I Lent Money'}
+        size="md"
+      >
+        {formMode && (
+          <TransactionForm
+            type={formMode === 'borrowed' ? 'BORROWED' : 'LENT'}
+            onSuccess={() => setFormMode(null)}
+          />
+        )}
+      </Modal>
     </AppShell>
   )
 }

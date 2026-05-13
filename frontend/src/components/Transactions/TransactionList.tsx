@@ -1,350 +1,319 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { format, differenceInDays } from 'date-fns'
+import {
+  ChevronDown, ChevronUp, Edit2, Trash2, CheckCircle2,
+  Paperclip, ArrowRight, ArrowDownLeft, ArrowUpRight, Users,
+  AlertTriangle,
+} from 'lucide-react'
 import { useTransactions } from '../../hooks/useTransactions'
 import { FileUpload } from '../Common/FileUpload'
 import { TransactionEditForm } from './TransactionEditForm'
-import { format, differenceInDays } from 'date-fns'
-import { ChevronDown, ChevronUp, Edit, ArrowRight } from 'lucide-react'
+import { Badge } from '../UI/Badge'
+import { Button } from '../UI/Button'
+import { EmptyState } from '../UI/EmptyState'
+import { Modal } from '../UI/Modal'
+import { cn } from '../../lib/utils'
 
 interface TransactionListProps {
-  type?: 'BORROWED' | 'LENT'
-  status?: 'PENDING' | 'COMPLETED'
-  showAll?: boolean // New prop to control if showing all transactions
+  type?:    'BORROWED' | 'LENT'
+  status?:  'PENDING' | 'COMPLETED'
+  showAll?: boolean
 }
+
+const fmt = (n: number) =>
+  `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export const TransactionList: React.FC<TransactionListProps> = ({ type, status, showAll = false }) => {
   const navigate = useNavigate()
-  const [limit] = useState(showAll ? 50 : 5) // Show 50 if showing all, otherwise 5
+  const [limit]  = useState(showAll ? 50 : 5)
   const [offset, setOffset] = useState(0)
-  const [uploadingForId, setUploadingForId] = useState<string | null>(null)
-  const [uploadError, setUploadError] = useState('')
-  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set())
-  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null)
+  const [uploadingForId, setUploadingForId]   = useState<string | null>(null)
+  const [uploadError, setUploadError]         = useState('')
+  const [expandedIds, setExpandedIds]         = useState<Set<string>>(new Set())
+  const [editingId, setEditingId]             = useState<string | null>(null)
 
-  const { transactions, total, isLoading, completeTransaction, isCompleting, deleteTransaction } = useTransactions({
-    type,
-    status,
-    limit,
-    offset,
-  })
+  const { transactions, total, isLoading, completeTransaction, isCompleting, deleteTransaction } =
+    useTransactions({ type, status, limit, offset })
 
-  const getOverdueStatus = (transaction: any) => {
-    if (!transaction.expected_return_date) return null
-    const days = differenceInDays(new Date(), new Date(transaction.expected_return_date))
-    return days > 0 ? days : null
+  const getOverdueDays = (t: any) => {
+    if (!t.expected_return_date) return null
+    const d = differenceInDays(new Date(), new Date(t.expected_return_date))
+    return d > 0 ? d : null
   }
 
-  const handleComplete = (id: string) => {
-    const today = format(new Date(), 'yyyy-MM-dd')
-    completeTransaction({ id, actualReturnDate: today })
-  }
+  const handleComplete = (id: string) =>
+    completeTransaction({ id, actualReturnDate: format(new Date(), 'yyyy-MM-dd') })
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this transaction?')) {
-      deleteTransaction(id)
-    }
+    if (window.confirm('Delete this transaction?')) deleteTransaction(id)
   }
 
-  const handleEdit = (id: string) => {
-    setEditingTransactionId(id)
-  }
-
-  const handleEditCancel = () => {
-    setEditingTransactionId(null)
-  }
-
-  const handleEditSuccess = () => {
-    setEditingTransactionId(null)
-  }
-
-  const toggleTransactionExpansion = (id: string) => {
-    setExpandedTransactions(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(id)) {
-        newSet.delete(id)
-      } else {
-        newSet.add(id)
-      }
-      return newSet
+  const toggleExpand = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
     })
-  }
 
-  // Navigate to all transactions page
   const handleShowAll = () => {
-    const queryParams = new URLSearchParams()
-    if (type) queryParams.set('type', type)
-    if (status) queryParams.set('status', status)
-    navigate(`/transactions/all?${queryParams.toString()}`)
+    const q = new URLSearchParams()
+    if (type)   q.set('type', type)
+    if (status) q.set('status', status)
+    navigate(`/transactions/all?${q.toString()}`)
   }
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading transactions...</div>
-  }
-
-  if (transactions.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        No transactions found.
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="h-5 w-36 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+        </div>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800 animate-pulse">
+            <div className="h-8 w-8 rounded-xl bg-gray-200 dark:bg-gray-700" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-3 w-20 rounded bg-gray-100 dark:bg-gray-800" />
+            </div>
+            <div className="h-5 w-20 rounded bg-gray-200 dark:bg-gray-700" />
+          </div>
+        ))}
       </div>
     )
   }
 
+  if (transactions.length === 0) {
+    return (
+      <div className="card">
+        <EmptyState
+          icon={<Users className="h-6 w-6" />}
+          title="No transactions found"
+          desc="Record money you've borrowed or lent."
+        />
+      </div>
+    )
+  }
+
+  const title = type === 'BORROWED' ? 'Money I Borrowed' : type === 'LENT' ? 'Money I Lent' : 'Transactions'
+
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-xl font-bold mb-4">
-        {type === 'BORROWED' ? 'Money I Borrowed' : type === 'LENT' ? 'Money I Lent' : 'Transactions'}
-      </h2>
-
-      <div className="space-y-4">
-        {transactions.map((transaction) => {
-          const overdueStatus = getOverdueStatus(transaction)
-          const isOverdue = overdueStatus && overdueStatus > 0
-          const isPending = transaction.status === 'PENDING'
-
-          return (
-            <div
-              key={transaction.id}
-              className={`border rounded-lg overflow-hidden ${
-                isOverdue ? 'border-red-300 bg-red-50' : isPending ? 'border-yellow-300 bg-yellow-50' : 'border-green-300 bg-green-50'
-              }`}
+    <>
+      <div className="card overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <h3 className="section-title">{title}</h3>
+          {!showAll && total > limit && (
+            <button
+              onClick={handleShowAll}
+              className="flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 transition"
             >
-              {/* Collapsible Header */}
-              <div 
-                className="p-4 cursor-pointer hover:bg-opacity-80 transition-colors"
-                onClick={() => toggleTransactionExpansion(transaction.id)}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-lg">{transaction.person_name}</h3>
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-semibold ${
-                          transaction.status === 'PENDING'
-                            ? 'bg-yellow-200 text-yellow-800'
-                            : 'bg-green-200 text-green-800'
-                        }`}
-                      >
-                        {transaction.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{transaction.purpose}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-blue-600">₹{transaction.amount.toFixed(2)}</p>
-                      <p className="text-sm text-gray-500">{format(new Date(transaction.given_date), 'MMM dd, yyyy')}</p>
-                    </div>
-                    <div className="p-2">
-                      {expandedTransactions.has(transaction.id) ? (
-                        <ChevronUp className="h-5 w-5 text-gray-600" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5 text-gray-600" />
+              View all <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Rows */}
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {transactions.map((t) => {
+            const overdueDays = getOverdueDays(t)
+            const isOverdue   = !!overdueDays
+            const isPending   = t.status === 'PENDING'
+            const expanded    = expandedIds.has(t.id)
+
+            return (
+              <div key={t.id}>
+                {/* Main row */}
+                <div
+                  className={cn(
+                    'flex items-center gap-3 px-5 py-3.5 cursor-pointer transition',
+                    isOverdue
+                      ? 'hover:bg-red-50/40 dark:hover:bg-red-950/20'
+                      : 'hover:bg-gray-50/60 dark:hover:bg-gray-800/40',
+                  )}
+                  onClick={() => toggleExpand(t.id)}
+                >
+                  {/* Icon */}
+                  <span className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl',
+                    t.transaction_type === 'BORROWED'
+                      ? 'bg-red-50 dark:bg-red-950/40'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40',
+                  )}>
+                    {t.transaction_type === 'BORROWED'
+                      ? <ArrowDownLeft className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      : <ArrowUpRight  className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    }
+                  </span>
+
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {t.person_name}
+                      </p>
+                      {isOverdue && (
+                        <span className="flex items-center gap-0.5 text-2xs font-semibold text-red-600 dark:text-red-400">
+                          <AlertTriangle className="h-3 w-3" />
+                          {overdueDays}d
+                        </span>
                       )}
                     </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {t.purpose || 'No purpose'} · {format(new Date(t.given_date), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+
+                  {/* Right side */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Badge variant={isPending ? 'yellow' : 'green'} dot>
+                      {t.status}
+                    </Badge>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      {fmt(t.amount)}
+                    </span>
+                    <span className="text-gray-400 dark:text-gray-600">
+                      {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Expandable Content */}
-              {expandedTransactions.has(transaction.id) && (
-                <div className="border-t border-gray-200 p-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div>
-                      <p className="text-gray-600">Given on</p>
-                      <p className="font-semibold">{format(new Date(transaction.given_date), 'MMM dd, yyyy')}</p>
-                    </div>
-                    {transaction.expected_return_date && (
+                {/* Expanded */}
+                {expanded && (
+                  <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-4 dark:border-gray-800 dark:bg-gray-800/30 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
                       <div>
-                        <p className="text-gray-600">Expected Return</p>
-                        <p
-                          className={`font-semibold ${
-                            isOverdue ? 'text-red-600' : isPending ? 'text-yellow-600' : 'text-gray-600'
-                          }`}
-                        >
-                          {format(new Date(transaction.expected_return_date), 'MMM dd, yyyy')}
-                          {isOverdue && <span className="ml-2 text-red-600">({overdueStatus}d overdue)</span>}
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Given on</p>
+                        <p className="mt-0.5 text-gray-700 dark:text-gray-300">
+                          {format(new Date(t.given_date), 'MMM d, yyyy')}
                         </p>
                       </div>
-                    )}
-                  </div>
-
-                  {transaction.actual_return_date && (
-                    <div className="text-sm mb-4">
-                      <p className="text-gray-600">Completed on</p>
-                      <p className="font-semibold">{format(new Date(transaction.actual_return_date), 'MMM dd, yyyy')}</p>
-                    </div>
-                  )}
-
-                  {transaction.media && transaction.media.length > 0 && (
-                    <div className="mb-4 rounded-lg border border-gray-200 bg-white/70 p-3">
-                      <p className="mb-2 text-sm font-semibold text-gray-700">Attached proof</p>
-                      <div className="space-y-2">
-                        {transaction.media.map((file) => (
-                          <a
-                            key={file.id}
-                            href={file.file_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block truncate text-sm font-medium text-blue-700 hover:text-blue-900"
-                          >
-                            {file.file_name}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {uploadingForId === transaction.id && (
-                    <div className="mb-4 rounded-lg border border-blue-200 bg-white p-4">
-                      <p className="mb-3 text-sm font-semibold text-gray-800">Upload receipt, screenshot, or PDF</p>
-                      {uploadError && (
-                        <div className="mb-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-                          {uploadError}
+                      {t.expected_return_date && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Expected return</p>
+                          <p className={cn('mt-0.5', isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300')}>
+                            {format(new Date(t.expected_return_date), 'MMM d, yyyy')}
+                            {isOverdue && ` (${overdueDays}d overdue)`}
+                          </p>
                         </div>
                       )}
-                      <FileUpload
-                        entityId={transaction.id}
-                        entityType="transaction"
-                        existingMedia={transaction.media || []}
-                        maxFiles={5}
-                        onError={setUploadError}
-                        onFileUpload={() => {
-                          setUploadError('')
-                          setUploadingForId(null)
-                        }}
-                      />
+                      {t.actual_return_date && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Completed on</p>
+                          <p className="mt-0.5 text-gray-700 dark:text-gray-300">
+                            {format(new Date(t.actual_return_date), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setUploadError('')
-                        setUploadingForId(uploadingForId === transaction.id ? null : transaction.id)
-                      }}
-                      className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                    >
-                      {uploadingForId === transaction.id ? 'Close Upload' : 'Upload Proof'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEdit(transaction.id)
-                      }}
-                      className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm flex items-center gap-1"
-                    >
-                      <Edit className="h-3 w-3" />
-                      Edit
-                    </button>
-
-                    {transaction.status === 'PENDING' && (
-                      <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleComplete(transaction.id)
-                        }}
-                        disabled={isCompleting}
-                        className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-sm"
-                      >
-                        {isCompleting ? 'Marking...' : 'Mark Complete'}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(transaction.id)
-                        }}
-                        className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                      >
-                        Delete
-                      </button>
-                      </>
+                    {/* Attachments */}
+                    {t.media && t.media.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Proof</p>
+                        <div className="flex flex-wrap gap-2">
+                          {t.media.map((f: any) => (
+                            <a
+                              key={f.id}
+                              href={f.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400 transition"
+                            >
+                              <Paperclip className="h-3 w-3" />
+                              {f.file_name}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
                     )}
+
+                    {/* Upload */}
+                    {uploadingForId === t.id && (
+                      <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/60 dark:bg-blue-950/30">
+                        {uploadError && <p className="mb-2 text-xs text-red-600 dark:text-red-400">{uploadError}</p>}
+                        <FileUpload
+                          entityId={t.id}
+                          entityType="transaction"
+                          existingMedia={t.media || []}
+                          maxFiles={5}
+                          onError={setUploadError}
+                          onFileUpload={() => { setUploadError(''); setUploadingForId(null) }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setUploadError(''); setUploadingForId(uploadingForId === t.id ? null : t.id) }}
+                        className="btn-ghost text-xs h-8 px-2.5"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {uploadingForId === t.id ? 'Close' : 'Upload Proof'}
+                      </button>
+
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingId(t.id) }}
+                        className="btn-ghost text-xs h-8 px-2.5"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+
+                      {isPending && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleComplete(t.id) }}
+                            disabled={isCompleting}
+                            className="btn-ghost text-xs h-8 px-2.5 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {isCompleting ? 'Marking…' : 'Mark Complete'}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(t.id) }}
+                            className="btn-ghost text-xs h-8 px-2.5 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )
-        })}
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Pagination */}
+        {showAll && total > limit && (
+          <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+            <Button variant="secondary" size="sm" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={offset === 0}>
+              Previous
+            </Button>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {offset + 1}–{Math.min(offset + limit, total)} of {total}
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => setOffset(offset + limit)} disabled={offset + limit >= total}>
+              Next
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Show All Button - Only show when not in showAll mode */}
-      {!showAll && total > limit && (
-        <div className="mt-4 text-center">
-          <button
-            onClick={handleShowAll}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-          >
-            <>
-              <ArrowRight className="h-4 w-4" />
-              View All Transactions ({total} total)
-            </>
-          </button>
-        </div>
-      )}
-
-      {/* Pagination for All Transactions Page */}
-      {showAll && total > limit && (
-        <div className="mt-4 flex items-center justify-between">
-          <button
-            onClick={() => setOffset(Math.max(0, offset - limit))}
-            disabled={offset === 0}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-gray-600">
-            Showing {offset + 1}-{Math.min(offset + limit, total)} of {total}
-          </span>
-          <button
-            onClick={() => setOffset(offset + limit)}
-            disabled={offset + limit >= total}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
-
-      {total > limit && (
-        <div className="mt-4 flex items-center justify-between">
-          <button
-            onClick={() => setOffset(Math.max(0, offset - limit))}
-            disabled={offset === 0}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-gray-600">
-            Showing {offset + 1} to {Math.min(offset + limit, total)} of {total}
-          </span>
-          <button
-            onClick={() => setOffset(offset + limit)}
-            disabled={offset + limit >= total}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
-
-      
-      {/* Edit Transaction Modal */}
-      {editingTransactionId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <TransactionEditForm
-              transactionId={editingTransactionId}
-              onSuccess={handleEditSuccess}
-              onCancel={handleEditCancel}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Edit modal */}
+      <Modal open={!!editingId} onClose={() => setEditingId(null)} title="Edit Transaction" size="md">
+        {editingId && (
+          <TransactionEditForm
+            transactionId={editingId}
+            onSuccess={() => setEditingId(null)}
+            onCancel={() => setEditingId(null)}
+          />
+        )}
+      </Modal>
+    </>
   )
 }

@@ -1,21 +1,24 @@
 import React, { useState } from 'react'
+import { format } from 'date-fns'
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useTransactions } from '../../hooks/useTransactions'
 import { FileUpload } from '../Common/FileUpload'
-import { format } from 'date-fns'
+import { FormField, Input, Select } from '../UI/FormElements'
+import { Button } from '../UI/Button'
 
 interface TransactionFormProps {
   onSuccess?: () => void
-  type?: 'BORROWED' | 'LENT'
+  type?:      'BORROWED' | 'LENT'
 }
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, type = 'BORROWED' }) => {
   const [transactionType, setTransactionType] = useState<'BORROWED' | 'LENT'>(type)
-  const [personName, setPersonName] = useState('')
-  const [amount, setAmount] = useState('')
-  const [givenDate, setGivenDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [personName, setPersonName]           = useState('')
+  const [amount, setAmount]                   = useState('')
+  const [givenDate, setGivenDate]             = useState(format(new Date(), 'yyyy-MM-dd'))
   const [expectedReturnDate, setExpectedReturnDate] = useState('')
-  const [purpose, setPurpose] = useState('')
-  const [error, setError] = useState('')
+  const [purpose, setPurpose]                 = useState('')
+  const [error, setError]                     = useState('')
   const [createdTransactionId, setCreatedTransactionId] = useState<string | null>(null)
 
   const { createTransactionAsync, isCreating } = useTransactions()
@@ -24,21 +27,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
     e.preventDefault()
     setError('')
 
-    if (!personName || !amount || !givenDate) {
-      setError('Please fill in required fields')
-      return
-    }
-
+    if (!personName || !amount || !givenDate) { setError('Please fill in required fields'); return }
     const numAmount = parseFloat(amount)
-    if (isNaN(numAmount) || numAmount <= 0) {
-      setError('Amount must be a positive number')
-      return
-    }
-
-    if (expectedReturnDate && expectedReturnDate <= givenDate) {
-      setError('Return date must be after given date')
-      return
-    }
+    if (isNaN(numAmount) || numAmount <= 0) { setError('Amount must be a positive number'); return }
+    if (expectedReturnDate && expectedReturnDate <= givenDate) { setError('Return date must be after given date'); return }
 
     try {
       const transaction = await createTransactionAsync({
@@ -50,131 +42,101 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
         purpose: purpose || undefined,
       })
       setCreatedTransactionId(transaction.id)
-
-      // Reset form
-      setPersonName('')
-      setAmount('')
-      setGivenDate(format(new Date(), 'yyyy-MM-dd'))
-      setExpectedReturnDate('')
-      setPurpose('')
-
+      setPersonName(''); setAmount(''); setGivenDate(format(new Date(), 'yyyy-MM-dd')); setExpectedReturnDate(''); setPurpose('')
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create transaction')
     }
   }
 
-  const finish = () => {
-    setCreatedTransactionId(null)
-    onSuccess?.()
-  }
+  const finish = () => { setCreatedTransactionId(null); onSuccess?.() }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-6">
-        {transactionType === 'BORROWED' ? 'I Borrowed Money' : 'I Lent Money'}
-      </h2>
-
-      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
-
-      {type === undefined && (
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Transaction Type
-          </label>
-          <select
-            value={transactionType}
-            onChange={(e) => setTransactionType(e.target.value as 'BORROWED' | 'LENT')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="BORROWED">Borrowed (I need to pay)</option>
-            <option value="LENT">Lent (They need to pay)</option>
-          </select>
+    <div className="space-y-5">
+      {error && (
+        <div className="alert-error">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="font-medium">{error}</p>
         </div>
       )}
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Person Name *
-          </label>
-          <input
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {type === undefined && (
+          <FormField label="Transaction Type">
+            <Select value={transactionType} onChange={(e) => setTransactionType(e.target.value as 'BORROWED' | 'LENT')}>
+              <option value="BORROWED">Borrowed (I need to pay back)</option>
+              <option value="LENT">Lent (They need to pay back)</option>
+            </Select>
+          </FormField>
+        )}
+
+        <FormField label="Person Name" required>
+          <Input
             type="text"
             value={personName}
             onChange={(e) => setPersonName(e.target.value)}
-            placeholder="Who did you borrow from/lend to?"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Who did you borrow from / lend to?"
             required
           />
+        </FormField>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="Amount" required>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              required
+            />
+          </FormField>
+          <FormField label="Date Given" required>
+            <Input
+              type="date"
+              value={givenDate}
+              onChange={(e) => setGivenDate(e.target.value)}
+              required
+            />
+          </FormField>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Amount *
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date Given *
-          </label>
-          <input
-            type="date"
-            value={givenDate}
-            onChange={(e) => setGivenDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Expected Return Date
-          </label>
-          <input
+        <FormField label="Expected Return Date" hint="Optional">
+          <Input
             type="date"
             value={expectedReturnDate}
             onChange={(e) => setExpectedReturnDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-        </div>
+        </FormField>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Purpose
-          </label>
-          <input
+        <FormField label="Purpose" hint="Optional">
+          <Input
             type="text"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            placeholder="Why did you borrow/lend?"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Why did you borrow / lend?"
           />
-        </div>
+        </FormField>
 
-        <button
+        <Button
           type="submit"
-          disabled={isCreating || !!createdTransactionId}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          variant="primary"
+          fullWidth
+          loading={isCreating}
+          disabled={!!createdTransactionId}
         >
-          {isCreating ? 'Creating...' : 'Add Transaction'}
-        </button>
-      </div>
+          {isCreating ? 'Saving…' : 'Add Transaction'}
+        </Button>
+      </form>
 
       {createdTransactionId && (
-        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="mb-3 text-sm font-medium text-green-700">
-            Transaction saved. Screenshot upload is optional.
-          </p>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30 space-y-3">
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              Transaction saved. Upload proof (optional).
+            </p>
+          </div>
           <FileUpload
             entityId={createdTransactionId}
             entityType="transaction"
@@ -182,15 +144,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, typ
             onError={(err) => setError(err)}
             maxFiles={1}
           />
-          <button
-            type="button"
-            onClick={finish}
-            className="mt-3 w-full rounded-md border border-green-300 bg-white px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-100"
-          >
-            Done without screenshot
-          </button>
+          <Button variant="secondary" size="sm" fullWidth onClick={finish}>
+            Done without upload
+          </Button>
         </div>
       )}
-    </form>
+    </div>
   )
 }

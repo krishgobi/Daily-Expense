@@ -1,91 +1,85 @@
 import React, { useState } from 'react'
-import { useReports } from '../../hooks/useReports'
 import { format, subMonths, subQuarters, subYears } from 'date-fns'
+import { FileText, AlertCircle } from 'lucide-react'
+import { useReports } from '../../hooks/useReports'
+import { FormField, Select } from '../UI/FormElements'
+import { Button } from '../UI/Button'
 
 interface ReportGeneratorProps {
   onSuccess?: () => void
 }
 
 export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ onSuccess }) => {
-  const [reportType, setReportType] = useState<'MONTHLY' | 'QUARTERLY' | 'YEARLY'>('MONTHLY')
+  const [reportType, setReportType]   = useState<'MONTHLY' | 'QUARTERLY' | 'YEARLY'>('MONTHLY')
   const [exportFormat, setExportFormat] = useState<'PDF' | 'EXCEL' | 'WORD'>('PDF')
-  const [error, setError] = useState('')
+  const [error, setError]             = useState('')
 
   const { generateReport, isGenerating } = useReports()
 
   const handleGenerate = () => {
     setError('')
-
     const today = new Date()
-    let periodStart, periodEnd
-
-    periodEnd = format(today, 'yyyy-MM-dd')
-
-    if (reportType === 'MONTHLY') {
-      periodStart = format(subMonths(today, 1), 'yyyy-MM-dd')
-    } else if (reportType === 'QUARTERLY') {
-      periodStart = format(subQuarters(today, 1), 'yyyy-MM-dd')
-    } else {
-      periodStart = format(subYears(today, 1), 'yyyy-MM-dd')
-    }
+    const periodEnd   = format(today, 'yyyy-MM-dd')
+    const periodStart = format(
+      reportType === 'MONTHLY'   ? subMonths(today, 1)
+      : reportType === 'QUARTERLY' ? subQuarters(today, 1)
+      : subYears(today, 1),
+      'yyyy-MM-dd',
+    )
 
     try {
-      generateReport({
-        reportType,
-        periodStart,
-        periodEnd,
-        format: exportFormat,
-      })
-      if (onSuccess) onSuccess()
+      generateReport({ reportType, periodStart, periodEnd, format: exportFormat })
+      onSuccess?.()
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to generate report')
     }
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-6">📋 Generate Report</h2>
+    <div className="card p-5 space-y-5">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-950/40">
+          <FileText className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+        </span>
+        <div>
+          <h3 className="section-title">Generate Report</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Export your expense summary</p>
+        </div>
+      </div>
 
-      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+      {error && (
+        <div className="alert-error">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
 
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Report Period
-          </label>
-          <select
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value as 'MONTHLY' | 'QUARTERLY' | 'YEARLY')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="MONTHLY">Monthly</option>
-            <option value="QUARTERLY">Quarterly</option>
-            <option value="YEARLY">Yearly</option>
-          </select>
-        </div>
+        <FormField label="Report Period">
+          <Select value={reportType} onChange={(e) => setReportType(e.target.value as any)}>
+            <option value="MONTHLY">Monthly (last 30 days)</option>
+            <option value="QUARTERLY">Quarterly (last 3 months)</option>
+            <option value="YEARLY">Yearly (last 12 months)</option>
+          </Select>
+        </FormField>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Export Format
-          </label>
-          <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value as 'PDF' | 'EXCEL' | 'WORD')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="PDF">📄 PDF</option>
-            <option value="EXCEL">📊 Excel</option>
-            <option value="WORD">📝 Word</option>
-          </select>
-        </div>
+        <FormField label="Export Format">
+          <Select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as any)}>
+            <option value="PDF">PDF Document</option>
+            <option value="EXCEL">Excel Spreadsheet</option>
+            <option value="WORD">Word Document</option>
+          </Select>
+        </FormField>
 
-        <button
+        <Button
+          variant="primary"
+          fullWidth
+          loading={isGenerating}
           onClick={handleGenerate}
-          disabled={isGenerating}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          icon={<FileText className="h-4 w-4" />}
         >
-          {isGenerating ? 'Generating...' : 'Generate Report'}
-        </button>
+          {isGenerating ? 'Generating…' : 'Generate Report'}
+        </Button>
       </div>
     </div>
   )

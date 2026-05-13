@@ -1,133 +1,96 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle, AlertCircle, X } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react'
+import { cn } from '../../lib/utils'
 
 export interface Toast {
-  id: string
-  type: 'success' | 'error' | 'info' | 'warning'
-  message: string
+  id:        string
+  type:      'success' | 'error' | 'info' | 'warning'
+  message:   string
   duration?: number
 }
 
-interface ToastProps {
-  toast: Toast
+interface ToastItemProps {
+  toast:    Toast
   onRemove: (id: string) => void
 }
 
-export const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
-  const [isVisible, setIsVisible] = useState(false)
+const config = {
+  success: {
+    icon:  CheckCircle2,
+    base:  'border-emerald-200 bg-emerald-50 dark:border-emerald-800/60 dark:bg-emerald-950/80',
+    text:  'text-emerald-800 dark:text-emerald-200',
+    icon_: 'text-emerald-500',
+  },
+  error: {
+    icon:  AlertCircle,
+    base:  'border-red-200 bg-red-50 dark:border-red-800/60 dark:bg-red-950/80',
+    text:  'text-red-800 dark:text-red-200',
+    icon_: 'text-red-500',
+  },
+  warning: {
+    icon:  AlertTriangle,
+    base:  'border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/80',
+    text:  'text-amber-800 dark:text-amber-200',
+    icon_: 'text-amber-500',
+  },
+  info: {
+    icon:  Info,
+    base:  'border-blue-200 bg-blue-50 dark:border-blue-800/60 dark:bg-blue-950/80',
+    text:  'text-blue-800 dark:text-blue-200',
+    icon_: 'text-blue-500',
+  },
+}
+
+export const Toast: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
+  const [visible, setVisible] = useState(false)
+  const { icon: Icon, base, text, icon_ } = config[toast.type]
 
   useEffect(() => {
-    setIsVisible(true)
-    
+    // Trigger enter animation
+    const t1 = setTimeout(() => setVisible(true), 10)
     if (toast.duration !== 0) {
-      const timer = setTimeout(() => {
-        setIsVisible(false)
+      const t2 = setTimeout(() => {
+        setVisible(false)
         setTimeout(() => onRemove(toast.id), 300)
       }, toast.duration || 5000)
-      
-      return () => clearTimeout(timer)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
     }
+    return () => clearTimeout(t1)
   }, [toast.id, toast.duration, onRemove])
-
-  const getIcon = () => {
-    switch (toast.type) {
-      case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />
-      case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />
-      case 'warning':
-        return <AlertCircle className="h-5 w-5 text-yellow-500" />
-      case 'info':
-        return <AlertCircle className="h-5 w-5 text-blue-500" />
-      default:
-        return <AlertCircle className="h-5 w-5 text-gray-500" />
-    }
-  }
-
-  const getBackgroundColor = () => {
-    switch (toast.type) {
-      case 'success':
-        return 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800'
-      case 'error':
-        return 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
-      case 'warning':
-        return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800'
-      case 'info':
-        return 'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800'
-      default:
-        return 'bg-gray-50 border-gray-200 dark:bg-gray-950 dark:border-gray-800'
-    }
-  }
-
-  const getTextColor = () => {
-    switch (toast.type) {
-      case 'success':
-        return 'text-green-800 dark:text-green-200'
-      case 'error':
-        return 'text-red-800 dark:text-red-200'
-      case 'warning':
-        return 'text-yellow-800 dark:text-yellow-200'
-      case 'info':
-        return 'text-blue-800 dark:text-blue-200'
-      default:
-        return 'text-gray-800 dark:text-gray-200'
-    }
-  }
 
   return (
     <div
-      className={`
-        fixed top-4 right-4 z-50 max-w-sm w-full sm:max-w-md sm:w-auto
-        transform transition-all duration-300 ease-in-out
-        ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
-      `}
+      className={cn(
+        'flex w-full max-w-sm items-start gap-3 rounded-xl border p-4 shadow-card-md backdrop-blur-sm',
+        'transition-all duration-300',
+        visible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0',
+        base,
+      )}
     >
-      <div
-        className={`
-          rounded-lg border p-4 shadow-lg
-          flex items-start gap-3
-          ${getBackgroundColor()}
-        `}
-      >
-        <div className="flex-shrink-0">
-          {getIcon()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium ${getTextColor()}`}>
-            {toast.message}
-          </p>
-        </div>
-        {toast.duration !== 0 && (
-          <button
-            onClick={() => {
-              setIsVisible(false)
-              setTimeout(() => onRemove(toast.id), 300)
-            }}
-            className={`
-              flex-shrink-0 p-1 rounded-md
-              transition-colors duration-200
-              ${getTextColor()} hover:bg-gray-100 dark:hover:bg-gray-800
-            `}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', icon_)} aria-hidden="true" />
+      <p className={cn('flex-1 text-sm font-medium', text)}>{toast.message}</p>
+      {toast.duration !== 0 && (
+        <button
+          onClick={() => { setVisible(false); setTimeout(() => onRemove(toast.id), 300) }}
+          className={cn('shrink-0 rounded-md p-0.5 transition hover:bg-black/10 dark:hover:bg-white/10', text)}
+          aria-label="Dismiss"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   )
 }
 
 interface ToastContainerProps {
-  toasts: Toast[]
+  toasts:   Toast[]
   onRemove: (id: string) => void
 }
 
-export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => {
-  return (
-    <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
-      {toasts.map((toast) => (
-        <Toast key={toast.id} toast={toast} onRemove={onRemove} />
-      ))}
-    </div>
-  )
-}
+export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => (
+  <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2 lg:bottom-4">
+    {toasts.map((t) => (
+      <Toast key={t.id} toast={t} onRemove={onRemove} />
+    ))}
+  </div>
+)
