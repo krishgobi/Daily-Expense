@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useSupabaseExpenses } from '../../hooks/useSupabaseExpenses'
+import { useExpenses } from '../../hooks/useExpenses'
 import { useTransactions } from '../../hooks/useTransactions'
 import {
   LineChart,
@@ -17,7 +17,7 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { format, subDays, startOfWeek, startOfMonth, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns'
-import { Expense } from '../../hooks/useSupabaseExpenses'
+import { Expense } from '../../services/expenseService'
 
 interface AnalyticsData {
   weeklyTrend: any[]
@@ -27,7 +27,7 @@ interface AnalyticsData {
 
 export const AnalyticsDashboard: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'quarter'>('week')
-  const { data: expenses, isLoading } = useSupabaseExpenses()
+  const { expenses, isLoading } = useExpenses()
   const { transactions } = useTransactions()
 
   // Process data for charts

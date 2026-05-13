@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSupabaseExpenses, useDeleteSupabaseExpense } from '../../hooks/useSupabaseExpenses'
+import { useExpenses } from '../../hooks/useExpenses'
 import { FileUpload } from '../Common/FileUpload'
 import { format } from 'date-fns'
 import { MediaFile } from '../../services/expenseService'
@@ -20,13 +20,11 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
   const [uploadingForId, setUploadingForId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
 
-  const { data: expenses, total, isLoading } = useSupabaseExpenses({
+  const { expenses, total, isLoading, deleteExpense, isDeleting } = useExpenses({
     type,
     limit,
     offset,
   })
-
-  const { deleteExpense, isDeleting } = useDeleteSupabaseExpense()
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {

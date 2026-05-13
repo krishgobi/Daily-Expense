@@ -1,10 +1,10 @@
 import React from 'react'
-import { OptimizedAnalyticsDashboard } from '../components/Analytics/OptimizedAnalyticsDashboard'
+import { AnalyticsDashboard } from '../components/Analytics/AnalyticsDashboard'
 
 export const AnalyticsPage: React.FC = () => {
   return (
     <div>
-      <OptimizedAnalyticsDashboard />
+      <AnalyticsDashboard />
     </div>
   )
 }
