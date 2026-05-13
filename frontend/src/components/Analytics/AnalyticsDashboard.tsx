@@ -1,16 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { format, subDays, eachDayOfInterval } from 'date-fns'
-import { TrendingUp, Banknote, CreditCard, ArrowDownLeft, ArrowUpRight, Clock } from 'lucide-react'
+import {
+  TrendingUp, Banknote, CreditCard,
+  ArrowDownLeft, ArrowUpRight, Clock, Sparkles,
+} from 'lucide-react'
 import { useExpenses } from '../../hooks/useExpenses'
 import { useTransactions } from '../../hooks/useTransactions'
 import { Expense } from '../../services/expenseService'
+import {
+  classifyExpenses, getCategoryInfo, CATEGORIES, CategoryId,
+} from '../../services/categoryClassifier'
 import { cn } from '../../lib/utils'
-
-const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
 
 const fmt = (n: number) =>
   `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -33,52 +37,82 @@ type TimeFilter = 'week' | 'month' | 'quarter'
 
 export const AnalyticsDashboard: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('month')
-  const { expenses, isLoading } = useExpenses()
-  const { transactions }        = useTransactions()
+  const [categoryMap, setCategoryMap] = useState<Map<string, CategoryId>>(new Map())
+  const [classifying, setClassifying] = useState(false)
 
-  const processData = () => {
-    const now = new Date()
+  // Fetch ALL expenses (no limit) for analytics
+  const { expenses, isLoading } = useExpenses({ limit: 500 })
+  const { transactions }        = useTransactions({ limit: 500 })
+
+  // ── Classify expenses with Gemini whenever expenses change ──────────────────
+  useEffect(() => {
+    if (!expenses.length) return
+    const unique = [...new Set(expenses.map((e) => e.purpose))]
+    setClassifying(true)
+    classifyExpenses(unique).then((map) => {
+      setCategoryMap(map)
+      setClassifying(false)
+    })
+  }, [expenses.length])
+
+  // ── Filter by time window ───────────────────────────────────────────────────
+  const filtered = useMemo(() => {
     const days = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 90
+    const cutoff = subDays(new Date(), days)
+    return expenses.filter((e) => new Date(e.date) >= cutoff)
+  }, [expenses, timeFilter])
+
+  // ── Trend data ──────────────────────────────────────────────────────────────
+  const trendData = useMemo(() => {
+    const now       = new Date()
+    const days      = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 90
     const startDate = subDays(now, days)
-    const dateFormat = 'MMM dd'
+    const dateFormat = timeFilter === 'quarter' ? 'MMM dd' : 'MMM dd'
 
-    const filtered = expenses.filter((e) => new Date(e.date) >= startDate)
-
-    // Trend
-    const trendMap = new Map<string, { date: string; amount: number; cash: number; digital: number }>()
+    const map = new Map<string, { date: string; cash: number; digital: number }>()
     eachDayOfInterval({ start: startDate, end: now }).forEach((d) => {
       const key = format(d, dateFormat)
-      trendMap.set(key, { date: key, amount: 0, cash: 0, digital: 0 })
+      map.set(key, { date: key, cash: 0, digital: 0 })
     })
     filtered.forEach((e: Expense) => {
       const key = format(new Date(e.date), dateFormat)
-      const existing = trendMap.get(key) || { date: key, amount: 0, cash: 0, digital: 0 }
-      existing.amount += e.amount
-      if (e.type === 'CASH') existing.cash += e.amount
-      else existing.digital += e.amount
-      trendMap.set(key, existing)
+      const ex  = map.get(key) ?? { date: key, cash: 0, digital: 0 }
+      if (e.type === 'CASH') ex.cash    += e.amount
+      else                   ex.digital += e.amount
+      map.set(key, ex)
     })
-    const trendData = Array.from(trendMap.values())
+    return Array.from(map.values())
+  }, [filtered, timeFilter])
 
-    // Categories
-    const catMap = new Map<string, { name: string; value: number }>()
-    filtered.forEach((e: Expense) => {
-      const cat = e.purpose || 'Other'
-      const ex  = catMap.get(cat) || { name: cat, value: 0 }
-      ex.value += e.amount
-      catMap.set(cat, ex)
-    })
-    const categoryData = Array.from(catMap.values()).sort((a, b) => b.value - a.value).slice(0, 8)
+  // ── Category breakdown (AI-powered) ────────────────────────────────────────
+  const categoryData = useMemo(() => {
+    const totals = new Map<CategoryId, number>()
+    for (const e of filtered) {
+      const catId = categoryMap.get(e.purpose) ?? 'other'
+      totals.set(catId, (totals.get(catId) ?? 0) + e.amount)
+    }
+    return Array.from(totals.entries())
+      .map(([id, value]) => {
+        const info = getCategoryInfo(id)
+        return { id, name: `${info.emoji} ${info.label}`, value, color: info.color }
+      })
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10)
+  }, [filtered, categoryMap])
 
-    const cashTotal    = filtered.filter((e: Expense) => e.type === 'CASH').reduce((s, e) => s + e.amount, 0)
-    const digitalTotal = filtered.filter((e: Expense) => e.type === 'DIGITAL').reduce((s, e) => s + e.amount, 0)
-    const pieData = [
-      { name: 'Cash',    value: cashTotal,    color: '#10b981' },
-      { name: 'Digital', value: digitalTotal, color: '#2563eb' },
-    ]
+  // ── Cash vs Digital ─────────────────────────────────────────────────────────
+  const cashTotal    = filtered.filter((e) => e.type === 'CASH').reduce((s, e) => s + e.amount, 0)
+  const digitalTotal = filtered.filter((e) => e.type === 'DIGITAL').reduce((s, e) => s + e.amount, 0)
+  const total        = cashTotal + digitalTotal
+  const pieData      = [
+    { name: 'Cash',    value: cashTotal,    color: '#10b981' },
+    { name: 'Digital', value: digitalTotal, color: '#2563eb' },
+  ]
 
-    return { trendData, categoryData, pieData, cashTotal, digitalTotal, total: cashTotal + digitalTotal }
-  }
+  // ── Transaction summary ─────────────────────────────────────────────────────
+  const txBorrowed = transactions.filter((t: any) => t.transaction_type === 'BORROWED').reduce((s: number, t: any) => s + t.amount, 0)
+  const txLent     = transactions.filter((t: any) => t.transaction_type === 'LENT').reduce((s: number, t: any) => s + t.amount, 0)
+  const txPending  = transactions.filter((t: any) => t.status === 'PENDING').reduce((s: number, t: any) => s + t.amount, 0)
 
   if (isLoading) {
     return (
@@ -90,32 +124,6 @@ export const AnalyticsDashboard: React.FC = () => {
       </div>
     )
   }
-
-  const { trendData, categoryData, pieData, cashTotal, digitalTotal, total } = processData()
-
-  const summaryCards = [
-    { label: 'Total Expenses', value: fmt(total),       icon: TrendingUp,    color: 'text-brand-600 dark:text-brand-400',   bg: 'bg-brand-50 dark:bg-brand-950/40' },
-    { label: 'Cash',           value: fmt(cashTotal),   icon: Banknote,      color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40' },
-    { label: 'Digital',        value: fmt(digitalTotal),icon: CreditCard,    color: 'text-violet-600 dark:text-violet-400',  bg: 'bg-violet-50 dark:bg-violet-950/40' },
-  ]
-
-  const txSummary = [
-    {
-      label: 'Money Borrowed',
-      value: fmt(transactions.filter((t: any) => t.transaction_type === 'BORROWED').reduce((s: number, t: any) => s + t.amount, 0)),
-      icon: ArrowDownLeft, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/40',
-    },
-    {
-      label: 'Money Lent',
-      value: fmt(transactions.filter((t: any) => t.transaction_type === 'LENT').reduce((s: number, t: any) => s + t.amount, 0)),
-      icon: ArrowUpRight, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40',
-    },
-    {
-      label: 'Pending',
-      value: fmt(transactions.filter((t: any) => t.status === 'PENDING').reduce((s: number, t: any) => s + t.amount, 0)),
-      icon: Clock, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/40',
-    },
-  ]
 
   return (
     <div className="space-y-6">
@@ -145,7 +153,11 @@ export const AnalyticsDashboard: React.FC = () => {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {summaryCards.map(({ label, value, icon: Icon, color, bg }) => (
+        {[
+          { label: 'Total Expenses', value: fmt(total),       icon: TrendingUp, color: 'text-brand-600 dark:text-brand-400',    bg: 'bg-brand-50 dark:bg-brand-950/40' },
+          { label: 'Cash',           value: fmt(cashTotal),   icon: Banknote,   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40' },
+          { label: 'Digital',        value: fmt(digitalTotal),icon: CreditCard, color: 'text-violet-600 dark:text-violet-400',   bg: 'bg-violet-50 dark:bg-violet-950/40' },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="card p-5 flex items-center gap-4">
             <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', bg)}>
               <Icon className={cn('h-5 w-5', color)} />
@@ -161,7 +173,7 @@ export const AnalyticsDashboard: React.FC = () => {
       {/* Trend chart */}
       <div className="card p-5">
         <h3 className="section-title mb-4">Expense Trend</h3>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={trendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="cashGrad" x1="0" y1="0" x2="0" y2="1">
@@ -175,7 +187,8 @@ export const AnalyticsDashboard: React.FC = () => {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}
+              tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
             <Area type="monotone" dataKey="cash"    stroke="#10b981" strokeWidth={2} fill="url(#cashGrad)"    dot={false} name="Cash" />
@@ -184,59 +197,112 @@ export const AnalyticsDashboard: React.FC = () => {
         </ResponsiveContainer>
       </div>
 
-      {/* Category + Pie */}
+      {/* AI Category breakdown + Cash vs Digital */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* AI Categories */}
         <div className="card p-5">
-          <h3 className="section-title mb-4">Top Categories</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="section-title">Spending by Category</h3>
+            <span className="flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
+              <Sparkles className="h-3 w-3" />
+              AI
+              {classifying && <span className="ml-1 animate-pulse">…</span>}
+            </span>
+          </div>
+
           {categoryData.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">No data for this period.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={categoryData} layout="horizontal" margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={72} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} name="Amount">
-                  {categoryData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="space-y-2.5">
+              {categoryData.map(({ id, name, value, color }) => {
+                const pct = total > 0 ? (value / total) * 100 : 0
+                return (
+                  <div key={id}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{pct.toFixed(1)}%</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{fmt(value)}</span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-gray-800">
+                      <div
+                        className="h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, backgroundColor: color }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
 
+        {/* Cash vs Digital pie */}
         <div className="card p-5">
           <h3 className="section-title mb-4">Cash vs Digital</h3>
           {pieData.every((d) => d.value === 0) ? (
             <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">No data for this period.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={4}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-6 mt-2">
+                {pieData.map((d) => (
+                  <div key={d.name} className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: d.color }} />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{d.name}</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{fmt(d.value)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
+
+      {/* Category bar chart (full width) */}
+      {categoryData.length > 0 && (
+        <div className="card p-5">
+          <h3 className="section-title mb-4">Category Breakdown</h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={categoryData} layout="horizontal" margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}
+                tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={130} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+              <Bar dataKey="value" radius={[0, 6, 6, 0]} name="Amount">
+                {categoryData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Transaction summary */}
       <div className="card p-5">
         <h3 className="section-title mb-4">Transaction Summary</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {txSummary.map(({ label, value, icon: Icon, color, bg }) => (
+          {[
+            { label: 'Money Borrowed', value: fmt(txBorrowed), icon: ArrowDownLeft, color: 'text-red-600 dark:text-red-400',     bg: 'bg-red-50 dark:bg-red-950/40' },
+            { label: 'Money Lent',     value: fmt(txLent),     icon: ArrowUpRight,  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40' },
+            { label: 'Pending',        value: fmt(txPending),  icon: Clock,         color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-50 dark:bg-amber-950/40' },
+          ].map(({ label, value, icon: Icon, color, bg }) => (
             <div key={label} className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-800/60">
               <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', bg)}>
                 <Icon className={cn('h-4 w-4', color)} />

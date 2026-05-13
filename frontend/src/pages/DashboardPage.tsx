@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Banknote, CreditCard, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react'
+import { Banknote, CreditCard, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { ExpenseForm } from '../components/Expenses/ExpenseForm'
 import { ExpenseList } from '../components/Expenses/ExpenseList'
 import { ExpenseSummary } from '../components/Dashboard/ExpenseSummary'
@@ -8,9 +8,7 @@ import { TransactionList } from '../components/Transactions/TransactionList'
 import { TransactionSummary } from '../components/Dashboard/TransactionSummary'
 import { SpendingTrendChart } from '../components/Charts/SpendingTrendChart'
 import { AppShell } from '../components/Layout/AppShell'
-import { Button } from '../components/UI/Button'
 import { Modal } from '../components/UI/Modal'
-import { SupabaseDebug } from '../components/Debug/SupabaseDebug'
 import { cn } from '../lib/utils'
 
 type FormMode = null | 'cash-expense' | 'digital-expense' | 'borrowed' | 'lent'
@@ -128,9 +126,6 @@ export const DashboardPage: React.FC = () => {
           />
         )}
       </Modal>
-
-      {/* Temporary debug panel — remove once data is confirmed working */}
-      <SupabaseDebug />
     </AppShell>
   )
 }
