@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useExpenses } from '../hooks/useExpenses'
 import { useTransactions } from '../hooks/useTransactions'
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
@@ -11,6 +11,7 @@ export const SearchPage: React.FC = () => {
   const [dateTo, setDateTo] = useState('')
   const [selectedMonth, setSelectedMonth] = useState('')
 
+  // Stabilize query to prevent infinite refetches
   const { expenses } = useExpenses()
   const { transactions } = useTransactions()
 

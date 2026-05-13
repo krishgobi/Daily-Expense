@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useExpenses } from '../../hooks/useExpenses'
 import { FileUpload } from '../Common/FileUpload'
@@ -20,11 +20,14 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
   const [uploadingForId, setUploadingForId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
 
-  const { expenses, total, isLoading, deleteExpense, isDeleting } = useExpenses({
+  // Stabilize filters to prevent infinite refetches
+  const filters = useMemo(() => ({
     type,
     limit,
     offset,
-  })
+  }), [type, limit, offset])
+
+  const { expenses, total, isLoading, deleteExpense, isDeleting } = useExpenses(filters)
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {

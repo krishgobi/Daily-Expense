@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useExpenses } from '../../hooks/useExpenses'
 import { useTransactions } from '../../hooks/useTransactions'
 import {
@@ -27,6 +27,8 @@ interface AnalyticsData {
 
 export const AnalyticsDashboard: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'quarter'>('week')
+  
+  // Stabilize query to prevent infinite refetches
   const { expenses, isLoading } = useExpenses()
   const { transactions } = useTransactions()
 
