@@ -32,6 +32,46 @@ async function getUserId(): Promise<string> {
   return user.id
 }
 
+/**
+ * Ensure a row exists in the `users` table for the current auth user.
+ * The `users` table has a FK from transactions/expenses → users.id.
+ * When using the Supabase JS client directly (bypassing the backend),
+ * we must make sure this row exists before inserting child records.
+ */
+async function ensureUserRow(): Promise<string> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) throw new Error('Not authenticated')
+
+  // Check if row already exists
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .single()
+
+  if (!existing) {
+    // Insert the user row — password_hash is required by the schema,
+    // use a placeholder since auth is handled by Supabase Auth
+    const { error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id:            user.id,
+        email:         user.email ?? '',
+        password_hash: 'supabase-auth',
+        full_name:     user.user_metadata?.full_name ?? user.email ?? 'User',
+        created_at:    new Date().toISOString(),
+        updated_at:    new Date().toISOString(),
+      })
+
+    // Ignore duplicate key errors (race condition)
+    if (insertError && !insertError.message.includes('duplicate')) {
+      console.warn('Could not create user row:', insertError.message)
+    }
+  }
+
+  return user.id
+}
+
 async function attachMedia(transactions: Transaction[]): Promise<Transaction[]> {
   if (!transactions.length) return transactions
   const ids = transactions.map((t) => t.id)
@@ -111,7 +151,9 @@ class TransactionService {
     expectedReturnDate?: string,
     purpose?: string,
   ) {
-    const userId = await getUserId()
+    // Ensure the users table row exists before inserting (FK requirement)
+    const userId = await ensureUserRow()
+
     const { data, error } = await supabase
       .from('transactions')
       .insert({
@@ -126,7 +168,8 @@ class TransactionService {
       })
       .select()
       .single()
-    if (error) throw error
+
+    if (error) throw new Error(error.message)
     return data as Transaction
   }
 
@@ -137,7 +180,7 @@ class TransactionService {
       .eq('id', id)
       .select()
       .single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data as Transaction
   }
 
@@ -152,13 +195,13 @@ class TransactionService {
       .eq('id', id)
       .select()
       .single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data as Transaction
   }
 
   async deleteTransaction(id: string) {
     const { error } = await supabase.from('transactions').delete().eq('id', id)
-    if (error) throw error
+    if (error) throw new Error(error.message)
   }
 
   async getPendingRepayments() {
@@ -188,8 +231,8 @@ class TransactionService {
   }
 
   async getOverdue() {
-    const userId  = await getUserId()
-    const today   = new Date().toISOString().split('T')[0]
+    const userId = await getUserId()
+    const today  = new Date().toISOString().split('T')[0]
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -214,11 +257,10 @@ class TransactionService {
       .eq('user_id', userId)
     if (error) throw error
 
-    const rows = data || []
+    const rows     = data || []
     const borrowed = rows.filter((r) => r.transaction_type === 'BORROWED')
     const lent     = rows.filter((r) => r.transaction_type === 'LENT')
-
-    const sum = (arr: any[]) => arr.reduce((s, r) => s + Number(r.amount), 0)
+    const sum      = (arr: any[]) => arr.reduce((s, r) => s + Number(r.amount), 0)
 
     const overdueBorrowed = borrowed.filter(
       (r) => r.status === 'PENDING' && r.expected_return_date && r.expected_return_date < today,

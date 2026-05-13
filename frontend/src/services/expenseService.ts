@@ -32,6 +32,40 @@ async function getUserId(): Promise<string> {
   return user.id
 }
 
+/**
+ * Ensure a row exists in the `users` table for the current auth user.
+ * The expenses/transactions tables have a FK → users.id.
+ * When bypassing the backend, we must ensure this row exists first.
+ */
+async function ensureUserRow(): Promise<string> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) throw new Error('Not authenticated')
+
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .single()
+
+  if (!existing) {
+    const { error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id:            user.id,
+        email:         user.email ?? '',
+        password_hash: 'supabase-auth',
+        full_name:     user.user_metadata?.full_name ?? user.email ?? 'User',
+        created_at:    new Date().toISOString(),
+        updated_at:    new Date().toISOString(),
+      })
+    if (insertError && !insertError.message.includes('duplicate')) {
+      console.warn('Could not create user row:', insertError.message)
+    }
+  }
+
+  return user.id
+}
+
 // Attach signed media URLs to expenses
 async function attachMedia(expenses: Expense[]): Promise<Expense[]> {
   if (!expenses.length) return expenses
@@ -110,7 +144,7 @@ class ExpenseService {
     description?: string,
     location?: string,
   ) {
-    const userId = await getUserId()
+    const userId = await ensureUserRow()
     const { data, error } = await supabase
       .from('expenses')
       .insert({
@@ -124,7 +158,7 @@ class ExpenseService {
       })
       .select()
       .single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data as Expense
   }
 
@@ -136,7 +170,7 @@ class ExpenseService {
     description?: string,
     location?: string,
   ) {
-    const userId = await getUserId()
+    const userId = await ensureUserRow()
     const { data, error } = await supabase
       .from('expenses')
       .insert({
@@ -151,7 +185,7 @@ class ExpenseService {
       })
       .select()
       .single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data as Expense
   }
 
