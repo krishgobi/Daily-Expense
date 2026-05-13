@@ -199,95 +199,167 @@ export const AnalyticsDashboard: React.FC = () => {
 
       {/* AI Category breakdown + Cash vs Digital */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* AI Categories */}
+
+        {/* AI Categories — card list style */}
         <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-5">
             <h3 className="section-title">Spending by Category</h3>
-            <span className="flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
+            <span className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
               <Sparkles className="h-3 w-3" />
-              AI
+              AI powered
               {classifying && <span className="ml-1 animate-pulse">…</span>}
             </span>
           </div>
 
           {categoryData.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">No data for this period.</p>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <span className="text-4xl mb-3">📊</span>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">No expenses in this period</p>
+            </div>
           ) : (
-            <div className="space-y-2.5">
-              {categoryData.map(({ id, name, value, color }) => {
+            <div className="space-y-3">
+              {categoryData.map(({ id, name, value, color }, index) => {
                 const pct = total > 0 ? (value / total) * 100 : 0
                 return (
-                  <div key={id}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{pct.toFixed(1)}%</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{fmt(value)}</span>
-                      </div>
+                  <div key={id} className="group">
+                    {/* Row */}
+                    <div className="flex items-center gap-3 mb-1.5">
+                      {/* Rank */}
+                      <span className="w-5 text-xs font-bold text-gray-400 dark:text-gray-600 shrink-0 text-right">
+                        {index + 1}
+                      </span>
+                      {/* Color dot */}
+                      <span
+                        className="h-3 w-3 rounded-full shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      {/* Name */}
+                      <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                        {name}
+                      </span>
+                      {/* Percentage */}
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0 w-10 text-right">
+                        {pct.toFixed(0)}%
+                      </span>
+                      {/* Amount */}
+                      <span className="text-sm font-bold text-gray-900 dark:text-gray-100 shrink-0 w-24 text-right">
+                        {fmt(value)}
+                      </span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-gray-800">
+                    {/* Progress bar */}
+                    <div className="ml-8 h-2 w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                       <div
-                        className="h-2 rounded-full transition-all duration-500"
+                        className="h-full rounded-full transition-all duration-700 ease-out"
                         style={{ width: `${pct}%`, backgroundColor: color }}
                       />
                     </div>
                   </div>
                 )
               })}
+
+              {/* Total row */}
+              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Total</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{fmt(total)}</span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Cash vs Digital pie */}
+        {/* Cash vs Digital donut */}
         <div className="card p-5">
-          <h3 className="section-title mb-4">Cash vs Digital</h3>
+          <h3 className="section-title mb-5">Cash vs Digital</h3>
           {pieData.every((d) => d.value === 0) ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">No data for this period.</p>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <span className="text-4xl mb-3">💳</span>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">No expenses in this period</p>
+            </div>
           ) : (
-            <>
+            <div className="flex flex-col items-center gap-4">
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={4}
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={3}
                     dataKey="value"
+                    strokeWidth={0}
                   >
-                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    {pieData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex justify-center gap-6 mt-2">
-                {pieData.map((d) => (
-                  <div key={d.name} className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: d.color }} />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{d.name}</span>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{fmt(d.value)}</span>
-                  </div>
-                ))}
+
+              {/* Legend cards */}
+              <div className="w-full grid grid-cols-2 gap-3">
+                {pieData.map((d) => {
+                  const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0'
+                  return (
+                    <div
+                      key={d.name}
+                      className="rounded-xl p-3 flex flex-col gap-1"
+                      style={{ backgroundColor: `${d.color}15` }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{d.name}</span>
+                      </div>
+                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{fmt(d.value)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{pct}% of total</p>
+                    </div>
+                  )
+                })}
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Category bar chart (full width) */}
+      {/* Category bar chart — full width, bigger, readable */}
       {categoryData.length > 0 && (
         <div className="card p-5">
-          <h3 className="section-title mb-4">Category Breakdown</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={categoryData} layout="horizontal" margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}
-                tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={130} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
-              <Bar dataKey="value" radius={[0, 6, 6, 0]} name="Amount">
-                {categoryData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+          <h3 className="section-title mb-5">Category Breakdown</h3>
+          <ResponsiveContainer width="100%" height={categoryData.length * 44 + 20}>
+            <BarChart
+              data={categoryData}
+              layout="vertical"
+              margin={{ top: 0, right: 60, left: 0, bottom: 0 }}
+              barSize={20}
+            >
+              <XAxis
+                type="number"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 12, fill: '#374151' }}
+                axisLine={false}
+                tickLine={false}
+                width={160}
+              />
+              <Tooltip
+                content={<CustomTooltip />}
+                cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+              />
+              <Bar dataKey="value" radius={[0, 8, 8, 0]} name="Amount" label={{
+                position: 'right',
+                formatter: (v: number) => fmt(v),
+                fontSize: 11,
+                fill: '#6b7280',
+              }}>
+                {categoryData.map((entry, i) => (
+                  <Cell key={i} fill={entry.color} />
+                ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

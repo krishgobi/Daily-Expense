@@ -13,19 +13,20 @@ import uuid
 import httpx
 
 # Import route modules
-from . import auth, categories, expenses, transactions, analytics, reports, search, calendar
+from . import auth, categories, expenses, transactions, analytics, reports, search, calendar, notifications
 
 router = APIRouter()
 
 # Include route modules
-router.include_router(auth.router, prefix="/auth", tags=["auth"])
-router.include_router(categories.router, prefix="/categories", tags=["categories"])
-router.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
-router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
-router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
-router.include_router(reports.router, prefix="/reports", tags=["reports"])
-router.include_router(search.router, prefix="/search", tags=["search"])
-router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
+router.include_router(auth.router,          prefix="/auth",          tags=["auth"])
+router.include_router(categories.router,    prefix="/categories",    tags=["categories"])
+router.include_router(expenses.router,      prefix="/expenses",      tags=["expenses"])
+router.include_router(transactions.router,  prefix="/transactions",  tags=["transactions"])
+router.include_router(analytics.router,     prefix="/analytics",     tags=["analytics"])
+router.include_router(reports.router,       prefix="/reports",       tags=["reports"])
+router.include_router(search.router,        prefix="/search",        tags=["search"])
+router.include_router(calendar.router,      prefix="/calendar",      tags=["calendar"])
+router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 
 # Chat endpoints (simple version to avoid circular imports)
 class ChatMessageRequest(BaseModel):

@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     # Gemini API
     GEMINI_API_KEY: str = ""
 
+    # Twilio WhatsApp
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_WHATSAPP_FROM: str = "whatsapp:+14155238886"
+    TWILIO_WHATSAPP_TO: str = ""
+    APP_URL: str = "http://localhost:5173"
+
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
