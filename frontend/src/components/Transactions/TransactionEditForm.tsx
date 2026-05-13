@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { AlertCircle, Paperclip } from 'lucide-react'
 import { useTransactions } from '../../hooks/useTransactions'
+import { supabase } from '../../services/supabaseClient'
+import transactionService from '../../services/transactionService'
 import { FormField, Input, Select } from '../UI/FormElements'
 import { Button } from '../UI/Button'
 
@@ -31,19 +33,14 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/transactions/${transactionId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        })
-        if (res.ok) {
-          const t = await res.json()
-          setTransactionType(t.transaction_type)
-          setPersonName(t.person_name)
-          setPurpose(t.purpose || '')
-          setAmount(t.amount.toString())
-          setGivenDate(format(new Date(t.given_date), 'yyyy-MM-dd'))
-          setExpectedReturnDate(t.expected_return_date ? format(new Date(t.expected_return_date), 'yyyy-MM-dd') : '')
-          setExistingMedia(t.media || [])
-        }
+        const t = await transactionService.getTransaction(transactionId)
+        setTransactionType(t.transaction_type)
+        setPersonName(t.person_name)
+        setPurpose(t.purpose || '')
+        setAmount(t.amount.toString())
+        setGivenDate(format(new Date(t.given_date), 'yyyy-MM-dd'))
+        setExpectedReturnDate(t.expected_return_date ? format(new Date(t.expected_return_date), 'yyyy-MM-dd') : '')
+        setExistingMedia(t.media || [])
       } catch {
         setError('Failed to load transaction details')
       }

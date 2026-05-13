@@ -1,4 +1,4 @@
-import api from './api'
+import { supabase } from './supabaseClient'
 
 export interface Transaction {
   id: string
@@ -24,7 +24,85 @@ export interface Transaction {
   updated_at: string
 }
 
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+async function getUserId(): Promise<string> {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Not authenticated')
+  return user.id
+}
+
+async function attachMedia(transactions: Transaction[]): Promise<Transaction[]> {
+  if (!transactions.length) return transactions
+  const ids = transactions.map((t) => t.id)
+  const { data: mediaRows } = await supabase
+    .from('transaction_media')
+    .select('*')
+    .in('transaction_id', ids)
+
+  const mediaMap: Record<string, any[]> = {}
+  for (const row of mediaRows || []) {
+    if (!mediaMap[row.transaction_id]) mediaMap[row.transaction_id] = []
+    mediaMap[row.transaction_id].push({
+      id:          row.id,
+      file_name:   row.file_name,
+      file_type:   row.file_type,
+      file_size:   row.file_size,
+      file_url:    row.file_url,
+      file_path:   row.file_path,
+      uploaded_at: row.uploaded_at,
+    })
+  }
+  return transactions.map((t) => ({ ...t, media: mediaMap[t.id] || [] }))
+}
+
+// ─── service ─────────────────────────────────────────────────────────────────
+
 class TransactionService {
+  async getTransactions(filters?: {
+    type?: 'BORROWED' | 'LENT'
+    status?: 'PENDING' | 'COMPLETED'
+    personName?: string
+    limit?: number
+    offset?: number
+  }) {
+    const userId = await getUserId()
+    let query = supabase
+      .from('transactions')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('given_date', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    if (filters?.type)       query = query.eq('transaction_type', filters.type)
+    if (filters?.status)     query = query.eq('status', filters.status)
+    if (filters?.personName) query = query.ilike('person_name', `%${filters.personName}%`)
+
+    const limit  = filters?.limit  ?? 20
+    const offset = filters?.offset ?? 0
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    const transactions = await attachMedia((data || []) as Transaction[])
+    return {
+      data: transactions,
+      meta: { total: count ?? 0, limit, offset },
+    }
+  }
+
+  async getTransaction(id: string) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (error) throw error
+    const [withMedia] = await attachMedia([data as Transaction])
+    return withMedia
+  }
+
   async createTransaction(
     transactionType: 'BORROWED' | 'LENT',
     personName: string,
@@ -33,99 +111,132 @@ class TransactionService {
     expectedReturnDate?: string,
     purpose?: string,
   ) {
-    const response = await api.post<{ status: string; data: Transaction }>('/transactions', {
-      transaction_type: transactionType,
-      person_name: personName,
-      amount,
-      given_date: givenDate,
-      expected_return_date: expectedReturnDate,
-      purpose,
-    })
-    return response.data.data
-  }
-
-  async getTransactions(filters?: {
-    type?: 'BORROWED' | 'LENT'
-    status?: 'PENDING' | 'COMPLETED'
-    personName?: string
-    limit?: number
-    offset?: number
-  }) {
-    const response = await api.get<{
-      status: string
-      data: Transaction[]
-      meta: { total: number; limit: number; offset: number }
-    }>('/transactions', {
-      params: {
-        transaction_type: filters?.type,
-        status: filters?.status,
-        person_name: filters?.personName,
-        limit: filters?.limit || 20,
-        offset: filters?.offset || 0,
-      },
-    })
-    return response.data
-  }
-
-  async getTransaction(id: string) {
-    const response = await api.get<{ status: string; data: Transaction }>(`/transactions/${id}`)
-    return response.data.data
+    const userId = await getUserId()
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id:              userId,
+        transaction_type:     transactionType,
+        person_name:          personName,
+        amount,
+        given_date:           givenDate,
+        expected_return_date: expectedReturnDate || null,
+        purpose:              purpose            || null,
+        status:               'PENDING',
+      })
+      .select()
+      .single()
+    if (error) throw error
+    return data as Transaction
   }
 
   async updateTransaction(id: string, updates: Partial<Transaction>) {
-    const response = await api.put<{ status: string; data: Transaction }>(`/transactions/${id}`, updates)
-    return response.data.data
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data as Transaction
   }
 
   async completeTransaction(id: string, actualReturnDate: string) {
-    const response = await api.put<{ status: string; data: Transaction }>(
-      `/transactions/${id}/complete`,
-      { actual_return_date: actualReturnDate },
-    )
-    return response.data.data
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({
+        status:             'COMPLETED',
+        actual_return_date: actualReturnDate,
+        updated_at:         new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data as Transaction
   }
 
   async deleteTransaction(id: string) {
-    await api.delete(`/transactions/${id}`)
+    const { error } = await supabase.from('transactions').delete().eq('id', id)
+    if (error) throw error
   }
 
   async getPendingRepayments() {
-    const response = await api.get<{ status: string; data: Transaction[] }>(
-      '/transactions/summary/pending-repayments',
-    )
-    return response.data.data
+    const userId = await getUserId()
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('transaction_type', 'BORROWED')
+      .eq('status', 'PENDING')
+      .order('expected_return_date', { ascending: true })
+    if (error) throw error
+    return (data || []) as Transaction[]
   }
 
   async getPendingCollections() {
-    const response = await api.get<{ status: string; data: Transaction[] }>(
-      '/transactions/summary/pending-collections',
-    )
-    return response.data.data
+    const userId = await getUserId()
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('transaction_type', 'LENT')
+      .eq('status', 'PENDING')
+      .order('expected_return_date', { ascending: true })
+    if (error) throw error
+    return (data || []) as Transaction[]
   }
 
   async getOverdue() {
-    const response = await api.get<{
-      status: string
-      data: { overdue_borrowed: Transaction[]; overdue_lent: Transaction[] }
-    }>('/transactions/summary/overdue')
-    return response.data.data
+    const userId  = await getUserId()
+    const today   = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'PENDING')
+      .lt('expected_return_date', today)
+    if (error) throw error
+    const rows = (data || []) as Transaction[]
+    return {
+      overdue_borrowed: rows.filter((t) => t.transaction_type === 'BORROWED'),
+      overdue_lent:     rows.filter((t) => t.transaction_type === 'LENT'),
+    }
   }
 
   async getTransactionsSummary() {
-    const response = await api.get<{
-      status: string
-      data: {
-        total_borrowed: number
-        total_lent: number
-        pending_borrowed: number
-        pending_lent: number
-        overdue_borrowed_count: number
-        overdue_lent_count: number
-        overdue_borrowed_amount: number
-        overdue_lent_amount: number
-      }
-    }>('/transactions/summary/overview')
-    return response.data.data
+    const userId = await getUserId()
+    const today  = new Date().toISOString().split('T')[0]
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('transaction_type, status, amount, expected_return_date')
+      .eq('user_id', userId)
+    if (error) throw error
+
+    const rows = data || []
+    const borrowed = rows.filter((r) => r.transaction_type === 'BORROWED')
+    const lent     = rows.filter((r) => r.transaction_type === 'LENT')
+
+    const sum = (arr: any[]) => arr.reduce((s, r) => s + Number(r.amount), 0)
+
+    const overdueBorrowed = borrowed.filter(
+      (r) => r.status === 'PENDING' && r.expected_return_date && r.expected_return_date < today,
+    )
+    const overdueLent = lent.filter(
+      (r) => r.status === 'PENDING' && r.expected_return_date && r.expected_return_date < today,
+    )
+
+    return {
+      total_borrowed:          sum(borrowed),
+      total_lent:              sum(lent),
+      pending_borrowed:        sum(borrowed.filter((r) => r.status === 'PENDING')),
+      pending_lent:            sum(lent.filter((r) => r.status === 'PENDING')),
+      overdue_borrowed_count:  overdueBorrowed.length,
+      overdue_lent_count:      overdueLent.length,
+      overdue_borrowed_amount: sum(overdueBorrowed),
+      overdue_lent_amount:     sum(overdueLent),
+    }
   }
 }
 

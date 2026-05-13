@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Send, MessageSquare, X, Minimize2, Maximize2, Trash2, RefreshCw, Sparkles, Bot } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { supabase } from '../../services/supabaseClient'
 import { cn } from '../../lib/utils'
 
 interface ChatMessage {
@@ -55,9 +56,13 @@ export const ChatBot: React.FC = () => {
     }])
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/chat/chat`, {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8001'
+
+      const res = await fetch(`${apiUrl}/api/v1/chat/chat`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body:    JSON.stringify({ message: msg, session_id: sessionId || undefined }),
       })
       if (!res.ok) throw new Error('Failed')
@@ -74,7 +79,7 @@ export const ChatBot: React.FC = () => {
         },
       ])
     } catch {
-      showError('Failed to send message. Please try again.')
+      showError('AI assistant is unavailable. Please ensure the backend is running.')
       setMessages((prev) => prev.filter((m) => m.id !== tempId))
     } finally {
       setIsLoading(false)
@@ -84,18 +89,24 @@ export const ChatBot: React.FC = () => {
   const clearChat = async () => {
     if (!sessionId) return
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/v1/chat/history/${sessionId}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8001'
+      await fetch(`${apiUrl}/api/v1/chat/history/${sessionId}`, {
+        method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       setMessages([]); setSessionId(''); showSuccess('Chat cleared')
-    } catch { showError('Failed to clear chat') }
+    } catch { setMessages([]); setSessionId('') }
   }
 
   const indexData = async () => {
     if (!user) return
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/chat/index-data`, {
-        method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8001'
+      const res = await fetch(`${apiUrl}/api/v1/chat/index-data`, {
+        method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) showSuccess('Data indexing started.')
     } catch { showError('Failed to start indexing') }
@@ -103,9 +114,13 @@ export const ChatBot: React.FC = () => {
 
   useEffect(() => {
     if (!isOpen || !sessionId) return
-    fetch(`${import.meta.env.VITE_API_URL}/api/v1/chat/history/${sessionId}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-    }).then((r) => r.ok ? r.json() : null).then((d) => { if (d) setMessages(d.messages || []) }).catch(() => {})
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token  = session?.access_token
+      const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8001'
+      fetch(`${apiUrl}/api/v1/chat/history/${sessionId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).then((r) => r.ok ? r.json() : null).then((d) => { if (d) setMessages(d.messages || []) }).catch(() => {})
+    })
   }, [isOpen, sessionId])
 
   /* ── FAB ─────────────────────────────────────────────────────────────── */
