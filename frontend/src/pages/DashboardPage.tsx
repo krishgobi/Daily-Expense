@@ -10,6 +10,7 @@ import { SpendingTrendChart } from '../components/Charts/SpendingTrendChart'
 import { AppShell } from '../components/Layout/AppShell'
 import { Button } from '../components/UI/Button'
 import { Modal } from '../components/UI/Modal'
+import { SupabaseDebug } from '../components/Debug/SupabaseDebug'
 import { cn } from '../lib/utils'
 
 type FormMode = null | 'cash-expense' | 'digital-expense' | 'borrowed' | 'lent'
@@ -127,6 +128,9 @@ export const DashboardPage: React.FC = () => {
           />
         )}
       </Modal>
+
+      {/* Temporary debug panel — remove once data is confirmed working */}
+      <SupabaseDebug />
     </AppShell>
   )
 }

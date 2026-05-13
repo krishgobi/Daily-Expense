@@ -18,24 +18,29 @@ export interface AuthResponse {
 
 function buildUser(authUser: any, profile?: any): User {
   return {
-    id:             authUser.id,
-    email:          authUser.email ?? '',
-    full_name:      profile?.full_name
-                      ?? authUser.user_metadata?.full_name
-                      ?? 'User',
-    created_at:     profile?.created_at,
-    currency_code:  profile?.currency_code,
-    timezone:       profile?.timezone,
+    id:            authUser.id,
+    email:         authUser.email ?? '',
+    full_name:     profile?.full_name
+                     ?? authUser.user_metadata?.full_name
+                     ?? 'User',
+    created_at:    profile?.created_at,
+    currency_code: profile?.currency_code,
+    timezone:      profile?.timezone,
   }
 }
 
+/** Try to fetch from the `users` table (backend-managed profile). */
 async function fetchProfile(userId: string): Promise<any | null> {
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-  return data
+  try {
+    const { data } = await supabase
+      .from('users')
+      .select('id, email, full_name, currency_code, timezone, created_at')
+      .eq('id', userId)
+      .single()
+    return data
+  } catch {
+    return null
+  }
 }
 
 // ─── service ─────────────────────────────────────────────────────────────────
@@ -43,9 +48,9 @@ async function fetchProfile(userId: string): Promise<any | null> {
 class AuthService {
   async register(email: string, password: string, fullName: string): Promise<AuthResponse> {
     const { data, error } = await supabase.auth.signUp({
-      email:    email.trim().toLowerCase(),
+      email:   email.trim().toLowerCase(),
       password,
-      options:  { data: { full_name: fullName.trim() } },
+      options: { data: { full_name: fullName.trim() } },
     })
     if (error) throw error
     if (!data.user) throw new Error('Signup did not return a user.')
@@ -85,20 +90,20 @@ class AuthService {
   }
 
   async updateProfile(updates: Partial<User>): Promise<User> {
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) throw new Error('Not authenticated')
+    const { data: { user: authUser }, error } = await supabase.auth.getUser()
+    if (error || !authUser) throw new Error('Not authenticated')
 
-    // Update user_metadata in Supabase Auth
+    // Update Supabase Auth metadata
     if (updates.full_name) {
       await supabase.auth.updateUser({ data: { full_name: updates.full_name } })
     }
 
-    // Update user_profiles table if it exists
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .upsert({ id: authUser.id, ...updates, updated_at: new Date().toISOString() })
+    // Update the `users` table row
+    await supabase
+      .from('users')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', authUser.id)
 
-    // Fetch fresh profile
     const profile = await fetchProfile(authUser.id)
     const user    = buildUser(authUser, profile ?? updates)
     localStorage.setItem('user', JSON.stringify(user))
