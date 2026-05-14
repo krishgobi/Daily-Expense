@@ -74,8 +74,6 @@ class AnalyticsService {
     const userId = await getUserId()
     const now    = new Date()
     const today  = format(now, 'yyyy-MM-dd')
-    const weekAgo = format(subMonths(now, 0), 'yyyy-MM-dd') // placeholder
-
     const { data: allExpenses } = await supabase
       .from('expenses')
       .select('amount, date, type, payment_method')

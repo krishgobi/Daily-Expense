@@ -1,11 +1,12 @@
 import React from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart,
 } from 'recharts'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { useSpendingTrend } from '../../hooks/useAnalytics'
+import { useDailyBreakdown } from '../../hooks/useAnalytics'
 import { cn } from '../../lib/utils'
+import { format } from 'date-fns'
 
 const fmt = (v: number) =>
   `₹${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
@@ -25,7 +26,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export const SpendingTrendChart: React.FC = () => {
-  const { data, isLoading } = useSpendingTrend(6)
+  const { data, isLoading } = useDailyBreakdown()
 
   if (isLoading) {
     return (
@@ -39,17 +40,33 @@ export const SpendingTrendChart: React.FC = () => {
     )
   }
 
-  if (!data?.months || data.months.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <div className="card p-5 flex items-center justify-center h-48">
-        <p className="text-sm text-gray-500 dark:text-gray-400">No spending data available yet.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">No spending data for this month yet.</p>
       </div>
     )
   }
 
-  const chartData = data.months.map((m) => ({ name: m.month_short, total: m.total }))
-  const trend     = data.trend.trend
-  const pct       = data.trend.percentage_change
+  // Sort by date and format for chart
+  const chartData = [...data]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((d) => ({ name: format(new Date(d.date), 'd MMM'), total: d.amount }))
+
+  const total = data.reduce((s, d) => s + d.amount, 0)
+  const monthName = format(new Date(), 'MMMM yyyy')
+
+  // Compare first half vs second half for trend
+  const mid = Math.floor(chartData.length / 2)
+  const firstHalf  = chartData.slice(0, mid).reduce((s, d) => s + d.total, 0)
+  const secondHalf = chartData.slice(mid).reduce((s, d) => s + d.total, 0)
+  let trend: 'UP' | 'DOWN' | 'STABLE' = 'STABLE'
+  let pct = 0
+  if (firstHalf > 0) {
+    pct = Math.round(((secondHalf - firstHalf) / firstHalf) * 100)
+    if (pct > 5)       trend = 'UP'
+    else if (pct < -5) trend = 'DOWN'
+  }
 
   const TrendIcon = trend === 'UP' ? TrendingUp : trend === 'DOWN' ? TrendingDown : Minus
   const trendColor = trend === 'UP'
@@ -62,8 +79,10 @@ export const SpendingTrendChart: React.FC = () => {
     <div className="card p-5">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h3 className="section-title">6-Month Spending Trend</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Monthly expense overview</p>
+          <h3 className="section-title">This Month's Spending</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {monthName} · Total: {fmt(total)}
+          </p>
         </div>
         <div className={cn('flex items-center gap-1 text-sm font-semibold', trendColor)}>
           <TrendIcon className="h-4 w-4" />
@@ -85,6 +104,7 @@ export const SpendingTrendChart: React.FC = () => {
             tick={{ fontSize: 11, fill: '#94a3b8' }}
             axisLine={false}
             tickLine={false}
+            interval="preserveStartEnd"
           />
           <YAxis
             tick={{ fontSize: 11, fill: '#94a3b8' }}
