@@ -39,14 +39,16 @@ export const IncomeSavingsCard: React.FC = () => {
   const cancel = () => { setEditing(false); setError('') }
 
   const submit = async () => {
-    const inc = parseFloat(income)
-    if (!income || isNaN(inc) || inc < 0) { setError('Enter a valid income amount.'); return }
+    const inc = income ? parseFloat(income) : null
+    const sav = savings ? parseFloat(savings) : null
+    if (inc !== null && (isNaN(inc) || inc < 0)) { setError('Enter a valid income amount.'); return }
+    if (sav !== null && (isNaN(sav) || sav < 0)) { setError('Enter a valid savings amount.'); return }
     setSaving(true)
     setError('')
     try {
       await settingsService.updateMonthlyIncome({
-        income: inc,
-        savings: savings ? parseFloat(savings) || null : null,
+        income: inc ?? 0,
+        savings: sav,
       })
       setEditing(false)
       await load()
@@ -93,7 +95,10 @@ export const IncomeSavingsCard: React.FC = () => {
       {editing ? (
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="label">Monthly Income (₹)</label>
+            <label className="label">
+              Monthly Income (₹)
+              <span className="ml-1 text-xs font-normal text-gray-400">optional</span>
+            </label>
             <input
               type="number"
               value={income}

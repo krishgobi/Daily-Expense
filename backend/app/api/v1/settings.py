@@ -25,8 +25,8 @@ class UserSettingsBody(BaseModel):
 
 
 class MonthlyIncomeBody(BaseModel):
-    income: float
-    savings: Optional[float] = None  # None = auto-calculate (income - expenses)
+    income: Optional[float] = None
+    savings: Optional[float] = None
 
 
 # ── User settings (salary day + phone) ───────────────────────────────────────
@@ -143,7 +143,7 @@ async def update_monthly_income(
                     updated_at = NOW()
             """),
             {"uid": user_id, "y": year, "m": month,
-             "income": body.income, "savings": body.savings},
+             "income": body.income or 0.0, "savings": body.savings},
         )
         db.commit()
         return {"status": "updated"}
