@@ -7,10 +7,7 @@ Uses APScheduler to run WhatsApp reminders automatically:
 
 import logging
 from datetime import date, timedelta
-
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
-import pytz
+from typing import Optional
 
 from app.database.connection import SessionLocal
 from app.models import Transaction
@@ -22,8 +19,18 @@ from app.services.whatsapp_service import (
 
 logger = logging.getLogger(__name__)
 
+# APScheduler and pytz are optional — app starts fine without them
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    import pytz
+    _APSCHEDULER_AVAILABLE = True
+except ImportError:
+    _APSCHEDULER_AVAILABLE = False
+    logger.warning("apscheduler not installed — scheduled notifications disabled")
+
 # ─── Scheduler instance (module-level singleton) ─────────────────────────────
-_scheduler: BackgroundScheduler | None = None
+_scheduler: Optional[object] = None
 
 
 # ─── Job functions ────────────────────────────────────────────────────────────
@@ -132,21 +139,22 @@ def run_daily_reminders():
 def start_scheduler():
     """Start the APScheduler background scheduler."""
     global _scheduler
+    if not _APSCHEDULER_AVAILABLE:
+        logger.warning("apscheduler not installed — scheduler not started")
+        return
+
     if _scheduler and _scheduler.running:
         return
 
     _scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Kolkata"))
-
-    # Run every day at 9:00 AM IST
     _scheduler.add_job(
         run_daily_reminders,
         trigger=CronTrigger(hour=9, minute=0),
         id="daily_reminders",
         name="Daily WhatsApp Reminders",
         replace_existing=True,
-        misfire_grace_time=3600,  # Allow up to 1 hour late
+        misfire_grace_time=3600,
     )
-
     _scheduler.start()
     logger.info("✅ Notification scheduler started (daily at 9:00 AM IST)")
 
@@ -154,6 +162,6 @@ def start_scheduler():
 def stop_scheduler():
     """Stop the scheduler gracefully."""
     global _scheduler
-    if _scheduler and _scheduler.running:
+    if _scheduler and _APSCHEDULER_AVAILABLE and _scheduler.running:
         _scheduler.shutdown(wait=False)
         logger.info("Notification scheduler stopped")
