@@ -16,20 +16,49 @@ logger = logging.getLogger(__name__)
 MODEL_PRIMARY = "llama-3.3-70b-versatile"
 MODEL_FALLBACK = "llama3-70b-8192"
 
-SYSTEM_PROMPT = """You are Tracksy AI, a smart personal finance assistant built into an expense tracker app.
+SYSTEM_PROMPT = """You are Tracksy AI, a friendly personal finance assistant built into an expense tracker app.
 
-You help users understand their spending, track borrowed/lent money, and manage their finances.
+When users greet you or ask general questions, respond warmly and conversationally — do NOT reference their financial data unless they ask about it.
+
+When users ask about their finances, use the provided financial context to give accurate, specific answers.
 
 Guidelines:
-- Be concise, friendly, and helpful
+- Be concise, warm, and conversational
+- For greetings like "hi", "hello", "how are you" — just greet back naturally, briefly introduce yourself
 - Use ₹ for Indian Rupee amounts
-- When you have expense/transaction context, reference it specifically
-- Supabase is the source of truth — never invent or fabricate financial records
+- Never invent or fabricate financial records — only reference data provided in context
 - If asked about data you don't have, say so clearly
 - Keep responses under 150 words unless detail is needed
 - Format lists with bullet points for readability
-- Prioritize accuracy over creativity with financial data
 """
+
+_GREETING_PHRASES = frozenset([
+    'hi', 'hello', 'hey', 'hii', 'helo', 'sup', 'yo', 'howdy',
+    'good morning', 'good evening', 'good afternoon', 'good night', 'gm', 'gn',
+    'how are you', 'how r u', 'how are u', "what's up", 'whats up',
+    'who are you', 'what are you', 'what can you do', 'help me',
+    'ok', 'okay', 'cool', 'nice', 'great', 'awesome', 'bye', 'goodbye',
+    'thanks', 'thank you', 'ty',
+])
+
+_FINANCE_KEYWORDS = frozenset([
+    'expense', 'spend', 'spent', 'money', 'transaction', 'budget', 'cost',
+    'amount', 'pay', 'paid', 'lend', 'lent', 'borrow', 'borrowed', 'bill',
+    'purchase', 'bought', 'buy', 'price', '₹', 'rupee', 'inr', 'biggest',
+    'total', 'category', 'balance', 'due', 'owe', 'debt', 'salary', 'income',
+    'saving', 'invest', 'rent', 'grocery', 'food', 'transport', 'month',
+    'week', 'year', 'today', 'yesterday', 'last', 'recent', 'history', 'record',
+    'how much', 'what did i', 'show my', 'find my',
+])
+
+
+def _is_finance_query(message: str) -> bool:
+    """Return True only when the message is clearly about finances."""
+    normalized = message.strip().lower().rstrip('!?.')
+    if normalized in _GREETING_PHRASES:
+        return False
+    lower = message.lower()
+    return any(kw in lower for kw in _FINANCE_KEYWORDS)
 
 
 def _build_messages(
@@ -89,7 +118,9 @@ async def generate_response(
         return "Groq API key is not configured. Please add GROQ_API_KEY to the backend .env file."
 
     client = _get_client()
-    messages = _build_messages(history, user_message, context_text)
+    # Only inject expense context for finance-related questions
+    effective_context = context_text if _is_finance_query(user_message) else ""
+    messages = _build_messages(history, user_message, effective_context)
 
     for model in (MODEL_PRIMARY, MODEL_FALLBACK):
         try:

@@ -3,7 +3,7 @@ import React, {
 } from 'react'
 import {
   Sparkles, X, Plus, Trash2, Send, MessageSquare,
-  ChevronLeft, Bot, History,
+  ChevronLeft, Bot, History, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { chatService, Conversation, Message } from '../../services/chatService'
@@ -47,27 +47,35 @@ const TypingDots: React.FC = () => (
 const Bubble: React.FC<{ msg: Message }> = ({ msg }) => {
   const isUser = msg.role === 'user'
   return (
-    <div className={cn('flex items-end gap-2.5 mb-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
+    <div className={cn('flex items-end gap-2 mb-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
       {!isUser && (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 shadow-md mb-0.5">
-          <Sparkles className="h-3.5 w-3.5 text-white" />
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-violet-600 shadow mb-0.5">
+          <Sparkles className="h-3 w-3 text-white" />
         </div>
       )}
-      <div className={cn('flex flex-col gap-1 max-w-[78%]', isUser ? 'items-end' : 'items-start')}>
+      <div className={cn('flex flex-col gap-0.5 max-w-[75%]', isUser ? 'items-end' : 'items-start')}>
         <div
           className={cn(
-            'rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm',
+            'rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed shadow-sm',
             isUser
-              ? 'rounded-br-sm bg-gradient-to-br from-brand-500 to-violet-600 text-white'
-              : 'rounded-bl-sm bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700',
+              ? 'rounded-br-none bg-gradient-to-br from-brand-500 to-violet-600 text-white'
+              : 'rounded-bl-none bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border border-gray-100/80 dark:border-gray-700',
           )}
         >
           <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+          <div className={cn(
+            'flex items-center gap-1 mt-1',
+            isUser ? 'justify-end' : 'justify-end',
+          )}>
+            <span className={cn(
+              'text-[10px] leading-none',
+              isUser ? 'text-white/60' : 'text-gray-400',
+            )}>
+              {formatTime(msg.created_at)}
+            </span>
+            {isUser && <span className="text-[10px] leading-none text-white/70">✓✓</span>}
+          </div>
         </div>
-        <span className="text-[10px] text-gray-400 px-1">
-          {formatTime(msg.created_at)}
-          {isUser && <span className="ml-1 text-brand-400">✓✓</span>}
-        </span>
       </div>
     </div>
   )
@@ -76,12 +84,52 @@ const Bubble: React.FC<{ msg: Message }> = ({ msg }) => {
 // ─── Date separator ───────────────────────────────────────────────────────────
 
 const DateSep: React.FC<{ label: string }> = ({ label }) => (
-  <div className="flex items-center gap-3 my-3">
-    <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
-    <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
+  <div className="flex items-center gap-3 my-4">
+    <div className="flex-1 h-px bg-gray-200/70 dark:bg-gray-700/50" />
+    <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 bg-gray-50/80 dark:bg-gray-950/80 px-2 py-0.5 rounded-full">
       {label}
     </span>
-    <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
+    <div className="flex-1 h-px bg-gray-200/70 dark:bg-gray-700/50" />
+  </div>
+)
+
+// ─── Delete Confirmation Modal ────────────────────────────────────────────────
+
+interface DeleteModalProps {
+  title: string
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+const DeleteModal: React.FC<DeleteModalProps> = ({ title, onConfirm, onCancel }) => (
+  <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/40 backdrop-blur-[2px] rounded-3xl">
+    <div className="w-full bg-white dark:bg-gray-900 rounded-t-3xl px-5 py-6 shadow-2xl animate-in slide-in-from-bottom duration-200">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40">
+          <AlertTriangle className="h-5 w-5 text-red-500" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Delete conversation?</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-[240px]">
+            "<span className="font-medium">{title}</span>" will be permanently deleted.
+          </p>
+        </div>
+        <div className="flex gap-3 w-full mt-1">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-2xl border border-gray-200 dark:border-gray-700 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-2xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 active:scale-95 transition"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 )
 
@@ -99,6 +147,7 @@ export const ChatBot: React.FC = () => {
   const [isLoading,      setIsLoading]      = useState(false)
   const [isFetchingMsgs, setIsFetchingMsgs] = useState(false)
   const [error,          setError]          = useState<string | null>(null)
+  const [deleteConfirm,  setDeleteConfirm]  = useState<{ id: string; title: string } | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef       = useRef<HTMLTextAreaElement>(null)
@@ -139,12 +188,19 @@ export const ChatBot: React.FC = () => {
     setTimeout(() => inputRef.current?.focus(), 100)
   }, [])
 
-  const deleteConversation = useCallback(async (id: string, e: React.MouseEvent) => {
+  const requestDelete = useCallback((id: string, title: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    setDeleteConfirm({ id, title })
+  }, [])
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteConfirm) return
+    const { id } = deleteConfirm
+    setDeleteConfirm(null)
     await chatService.deleteConversation(id).catch(() => {})
     setConversations(prev => prev.filter(c => c.id !== id))
     if (activeConvId === id) startNewChat()
-  }, [activeConvId, startNewChat])
+  }, [deleteConfirm, activeConvId, startNewChat])
 
   const sendMessage = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim()
@@ -219,14 +275,23 @@ export const ChatBot: React.FC = () => {
       className={cn(
         'fixed inset-0 z-50',
         'lg:inset-auto lg:bottom-6 lg:right-4',
-        'lg:w-[420px] lg:h-[620px] lg:max-h-[88vh]',
+        'lg:w-[420px] lg:h-[640px] lg:max-h-[90vh]',
         'flex flex-col overflow-hidden',
         'rounded-none lg:rounded-3xl',
         'border-0 lg:border lg:border-gray-200 lg:dark:border-gray-700',
         'bg-white dark:bg-gray-900',
-        'shadow-2xl lg:shadow-[0_24px_64px_-8px_rgba(15,23,42,0.22)]',
+        'shadow-2xl lg:shadow-[0_24px_64px_-8px_rgba(15,23,42,0.28)]',
       )}
     >
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <DeleteModal
+          title={deleteConfirm.title}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="relative flex shrink-0 items-center gap-3 bg-gradient-to-r from-brand-600 to-violet-600 px-4 py-3 text-white">
         {/* History / Back button */}
@@ -237,13 +302,13 @@ export const ChatBot: React.FC = () => {
         >
           {showHistory
             ? <ChevronLeft className="h-5 w-5" />
-            : <History className="h-4.5 w-4.5" />
+            : <History className="h-4 w-4" />
           }
         </button>
 
         {/* Avatar */}
         <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20">
-          <Sparkles className="h-4.5 w-4.5" />
+          <Sparkles className="h-4 w-4" />
           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white/60" />
         </div>
 
@@ -255,7 +320,7 @@ export const ChatBot: React.FC = () => {
               Finance Copilot
             </span>
           </div>
-          <p className="text-xs text-white/70 truncate">
+          <p className="text-[11px] text-white/70 truncate">
             {showHistory ? 'Chat History' : activeTitle}
           </p>
         </div>
@@ -299,11 +364,15 @@ export const ChatBot: React.FC = () => {
               </div>
             ) : (
               conversations.map(conv => (
-                <button
+                /* Using div instead of button to avoid nested button warning */
+                <div
                   key={conv.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => selectConversation(conv.id)}
+                  onKeyDown={e => e.key === 'Enter' && selectConversation(conv.id)}
                   className={cn(
-                    'group w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all',
+                    'group w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all cursor-pointer select-none',
                     activeConvId === conv.id
                       ? 'bg-brand-50 ring-1 ring-brand-200 dark:bg-brand-950/30 dark:ring-brand-800'
                       : 'hover:bg-white dark:hover:bg-gray-800',
@@ -329,18 +398,19 @@ export const ChatBot: React.FC = () => {
                     <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(conv.created_at)}</p>
                   </div>
                   <button
-                    onClick={(e) => deleteConversation(conv.id, e)}
-                    className="hidden group-hover:flex h-7 w-7 items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 transition"
+                    onClick={(e) => requestDelete(conv.id, conv.title, e)}
+                    className="hidden group-hover:flex h-7 w-7 items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 transition shrink-0"
+                    title="Delete conversation"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                </button>
+                </div>
               ))
             )}
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 text-center">
+          <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 text-center">
             <p className="text-[10px] text-gray-400">
               Powered by <span className="font-semibold text-brand-600 dark:text-brand-400">Groq AI</span>
             </p>
@@ -350,8 +420,13 @@ export const ChatBot: React.FC = () => {
       ) : (
         /* ── Chat panel ──────────────────────────────────────────────────── */
         <>
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50 dark:bg-gray-950">
+          {/* Messages — WhatsApp-style subtle background */}
+          <div
+            className="flex-1 overflow-y-auto px-4 py-4 bg-[#f0f2f5] dark:bg-gray-950"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239ca3af' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          >
             {isFetchingMsgs ? (
               <div className="flex flex-col items-center justify-center h-full gap-3">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
@@ -367,7 +442,7 @@ export const ChatBot: React.FC = () => {
                   <div className="relative flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-brand-500 to-violet-600 shadow-xl shadow-brand-500/25">
                     <Bot className="h-10 w-10 text-white" />
                   </div>
-                  <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-400 ring-4 ring-gray-50 dark:ring-gray-950 text-white text-[10px] font-bold">
+                  <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-400 ring-4 ring-[#f0f2f5] dark:ring-gray-950 text-white text-[10px] font-bold">
                     AI
                   </span>
                 </div>
@@ -377,7 +452,7 @@ export const ChatBot: React.FC = () => {
                     Hey {user?.full_name?.split(' ')[0] ?? 'there'} 👋
                   </h3>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-[260px] leading-relaxed">
-                    Your personal finance AI. Ask me anything!
+                    Your personal finance AI. Ask me anything about your expenses!
                   </p>
                 </div>
 
@@ -425,11 +500,11 @@ export const ChatBot: React.FC = () => {
 
                 {/* Typing indicator */}
                 {isLoading && (
-                  <div className="flex items-end gap-2.5 mb-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 shadow-md mb-0.5">
-                      <Sparkles className="h-3.5 w-3.5 text-white" />
+                  <div className="flex items-end gap-2 mb-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-violet-600 shadow mb-0.5">
+                      <Sparkles className="h-3 w-3 text-white" />
                     </div>
-                    <div className="rounded-2xl rounded-bl-sm bg-white border border-gray-100 px-4 py-2.5 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+                    <div className="rounded-2xl rounded-bl-none bg-white border border-gray-100 px-4 py-2.5 shadow-sm dark:bg-gray-800 dark:border-gray-700">
                       <TypingDots />
                     </div>
                   </div>
@@ -450,9 +525,9 @@ export const ChatBot: React.FC = () => {
           )}
 
           {/* Input bar */}
-          <div className="shrink-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-3 py-3">
+          <div className="shrink-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-3 py-2.5">
             <div className={cn(
-              'flex items-end gap-2 rounded-2xl border px-3.5 py-2.5 transition-all shadow-sm',
+              'flex items-end gap-2 rounded-2xl border px-3.5 py-2 transition-all shadow-sm',
               'bg-gray-50 dark:bg-gray-800',
               input
                 ? 'border-brand-400 ring-2 ring-brand-500/10 dark:border-brand-500'
@@ -477,29 +552,20 @@ export const ChatBot: React.FC = () => {
                 onClick={() => sendMessage()}
                 disabled={!input.trim() || isLoading}
                 className={cn(
-                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-150',
+                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all duration-150',
                   input.trim() && !isLoading
                     ? 'bg-gradient-to-br from-brand-500 to-violet-600 text-white shadow-md hover:scale-105 active:scale-95'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-600',
                 )}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5" />
               </button>
             </div>
-            <p className="mt-1.5 text-center text-[10px] text-gray-400 dark:text-gray-600">
-              ↵ Enter to send · Shift+Enter for new line
+            <p className="mt-1 text-center text-[10px] text-gray-400 dark:text-gray-600">
+              ↵ Enter to send · Shift+Enter for new line · Powered by <span className="text-brand-500 font-medium">Groq AI</span>
             </p>
           </div>
         </>
-      )}
-
-      {/* Groq footer (shown in chat mode) */}
-      {!showHistory && messages.length === 0 && (
-        <div className="shrink-0 py-2 text-center border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-          <p className="text-[10px] text-gray-400">
-            Powered by <span className="font-semibold text-brand-600 dark:text-brand-400">Groq AI</span>
-          </p>
-        </div>
       )}
     </div>
   )
