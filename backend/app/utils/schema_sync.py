@@ -202,14 +202,16 @@ def run_schema_sync() -> None:
         """))
         connection.execute(text("CREATE INDEX IF NOT EXISTS idx_monthly_income_user ON monthly_income(user_id)"))
 
-        # Legacy RAG chat tables (optional)
-        if CHAT_ENABLED:
-            try:
-                connection.execute(text(CHAT_HISTORY_TABLE_SQL))
-                connection.execute(text(RAG_CONTEXT_TABLE_SQL))
-                connection.execute(text(SIMILARITY_SEARCH_FUNCTION_SQL))
-            except Exception as e:
-                print(f"Warning: Failed to create legacy chat tables: {e}")
+    # Legacy RAG chat tables in a SEPARATE transaction so a failure there
+    # does not abort and roll back the main tables above.
+    if CHAT_ENABLED:
+        try:
+            with engine.begin() as conn2:
+                conn2.execute(text(CHAT_HISTORY_TABLE_SQL))
+                conn2.execute(text(RAG_CONTEXT_TABLE_SQL))
+                conn2.execute(text(SIMILARITY_SEARCH_FUNCTION_SQL))
+        except Exception as e:
+            print(f"Warning: Failed to create legacy chat tables: {e}")
 
 
 if __name__ == "__main__":

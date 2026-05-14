@@ -15,7 +15,7 @@ export const ProfileSettingsPage: React.FC = () => {
   const [success, setSuccess]             = useState('')
 
   // Notification settings
-  const [whatsapp, setWhatsapp]           = useState('')
+  const [whatsapp, setWhatsapp]           = useState('+91')
   const [salaryDay, setSalaryDay]         = useState<number | ''>('')
   const [notifSaving, setNotifSaving]     = useState(false)
   const [notifError, setNotifError]       = useState('')
@@ -27,7 +27,7 @@ export const ProfileSettingsPage: React.FC = () => {
   useEffect(() => {
     settingsService.getSettings()
       .then((s: UserSettings) => {
-        setWhatsapp(s.whatsapp_number || '')
+        setWhatsapp(s.whatsapp_number || '+91')
         setSalaryDay(s.salary_day ?? '')
       })
       .catch(() => {})
