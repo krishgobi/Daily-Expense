@@ -17,8 +17,12 @@ Base = declarative_base()
 
 # Create Engine
 # Using NullPool for serverless/edge deployments
-# Convert postgresql:// to postgresql+psycopg:// for psycopg v3
-database_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
+# Normalise URL to psycopg2 regardless of what the env var contains
+database_url = (
+    settings.DATABASE_URL
+    .replace("postgresql+psycopg://", "postgresql+psycopg2://")
+    .replace("postgresql://", "postgresql+psycopg2://")
+)
 engine = create_engine(
     database_url,
     echo=settings.DEBUG,
