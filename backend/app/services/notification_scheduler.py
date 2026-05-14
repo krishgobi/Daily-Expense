@@ -9,6 +9,7 @@ import logging
 from datetime import date, timedelta
 from typing import Optional
 
+from app.config import settings
 from app.database.connection import SessionLocal
 from app.models import Transaction
 from app.services.whatsapp_service import (
@@ -155,12 +156,12 @@ def run_salary_reminders():
         ).fetchall()
 
         for row in rows:
+            url = f"{settings.APP_URL}/dashboard"
             body = (
                 f"💰 *Salary Reminder — Tracksy.AI*\n\n"
                 f"Hope you've received your monthly salary today! 🎉\n\n"
-                f"Don't forget to log your income on Tracksy.AI so your "
-                f"savings calculation stays accurate.\n\n"
-                f"📲 Log now: {__import__('app.config', fromlist=['settings']).settings.APP_URL}/dashboard"
+                f"Don't forget to log your income so your savings calculation stays accurate.\n\n"
+                f"📲 Log your income now: {url}"
             )
             send_whatsapp(body, to=row.whatsapp_number)
             logger.info(f"Salary reminder sent to user {row.user_id}")
