@@ -35,15 +35,25 @@ def _get_client():
     return TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
 
-def send_whatsapp(body: str) -> bool:
-    """Send a plain-text WhatsApp message. Returns True on success."""
+def send_whatsapp(body: str, to: Optional[str] = None) -> bool:
+    """Send a plain-text WhatsApp message. Returns True on success.
+
+    `to` overrides the default TWILIO_WHATSAPP_TO env var — used for per-user numbers.
+    """
     client = _get_client()
     if not client:
         return False
+    recipient = to or settings.TWILIO_WHATSAPP_TO
+    if not recipient:
+        logger.warning("No WhatsApp recipient configured — skipping notification")
+        return False
+    # Twilio WhatsApp numbers must be prefixed with whatsapp:
+    if not recipient.startswith("whatsapp:"):
+        recipient = f"whatsapp:{recipient}"
     try:
         msg = client.messages.create(
             from_=settings.TWILIO_WHATSAPP_FROM,
-            to=settings.TWILIO_WHATSAPP_TO,
+            to=recipient,
             body=body,
         )
         logger.info(f"WhatsApp sent: {msg.sid}")

@@ -15,6 +15,7 @@ from app.services.whatsapp_service import (
     notify_you_must_return,
     notify_they_must_return,
     notify_daily_summary,
+    send_whatsapp,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,42 @@ def run_daily_reminders():
         db.close()
 
 
+def run_salary_reminders():
+    """
+    Runs every morning. Finds users whose salary_day matches today's date
+    and sends them a WhatsApp reminder to log their income.
+    """
+    logger.info("Checking salary day reminders…")
+    db = SessionLocal()
+    try:
+        today = date.today()
+        from sqlalchemy import text
+        rows = db.execute(
+            text(
+                "SELECT user_id, whatsapp_number, salary_day "
+                "FROM user_settings "
+                "WHERE salary_day = :day AND whatsapp_number IS NOT NULL"
+            ),
+            {"day": today.day},
+        ).fetchall()
+
+        for row in rows:
+            body = (
+                f"💰 *Salary Reminder — Tracksy.AI*\n\n"
+                f"Hope you've received your monthly salary today! 🎉\n\n"
+                f"Don't forget to log your income on Tracksy.AI so your "
+                f"savings calculation stays accurate.\n\n"
+                f"📲 Log now: {__import__('app.config', fromlist=['settings']).settings.APP_URL}/dashboard"
+            )
+            send_whatsapp(body, to=row.whatsapp_number)
+            logger.info(f"Salary reminder sent to user {row.user_id}")
+
+    except Exception as e:
+        logger.error(f"Error in salary reminders job: {e}")
+    finally:
+        db.close()
+
+
 # ─── Scheduler lifecycle ──────────────────────────────────────────────────────
 
 def start_scheduler():
@@ -152,6 +189,14 @@ def start_scheduler():
         trigger=CronTrigger(hour=9, minute=0),
         id="daily_reminders",
         name="Daily WhatsApp Reminders",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    _scheduler.add_job(
+        run_salary_reminders,
+        trigger=CronTrigger(hour=9, minute=0),
+        id="salary_reminders",
+        name="Salary Day WhatsApp Reminders",
         replace_existing=True,
         misfire_grace_time=3600,
     )

@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from . import (
     auth, categories, expenses, transactions,
     analytics, reports, search, calendar,
-    notifications, chat,
+    notifications, chat, settings,
 )
 
 router = APIRouter()
@@ -22,6 +22,7 @@ router.include_router(search.router,        prefix="/search",        tags=["sear
 router.include_router(calendar.router,      prefix="/calendar",      tags=["calendar"])
 router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 router.include_router(chat.router,          prefix="/chat",          tags=["chat"])
+router.include_router(settings.router,      prefix="/settings",      tags=["settings"])
 
 
 @router.get("/", tags=["health"])

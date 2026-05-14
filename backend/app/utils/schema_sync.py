@@ -173,6 +173,35 @@ def run_schema_sync() -> None:
             "CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id)"
         ))
 
+        # User settings (salary day + WhatsApp number)
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                salary_day INTEGER,
+                whatsapp_number VARCHAR(20),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        connection.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS salary_day INTEGER"))
+        connection.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)"))
+
+        # Monthly income and savings
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS monthly_income (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                income DOUBLE PRECISION DEFAULT 0,
+                savings DOUBLE PRECISION DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, year, month)
+            )
+        """))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_monthly_income_user ON monthly_income(user_id)"))
+
         # Legacy RAG chat tables (optional)
         if CHAT_ENABLED:
             try:

@@ -7,6 +7,7 @@ import { TransactionForm } from '../components/Transactions/TransactionForm'
 import { TransactionList } from '../components/Transactions/TransactionList'
 import { TransactionSummary } from '../components/Dashboard/TransactionSummary'
 import { SpendingTrendChart } from '../components/Charts/SpendingTrendChart'
+import { IncomeSavingsCard } from '../components/Dashboard/IncomeSavingsCard'
 import { AppShell } from '../components/Layout/AppShell'
 import { Modal } from '../components/UI/Modal'
 import { cn } from '../lib/utils'
@@ -86,6 +87,9 @@ export const DashboardPage: React.FC = () => {
 
         {/* Spending trend */}
         <SpendingTrendChart />
+
+        {/* Income & Savings */}
+        <IncomeSavingsCard />
 
         {/* Transaction summary */}
         <section>
