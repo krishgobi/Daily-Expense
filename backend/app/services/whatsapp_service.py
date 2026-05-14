@@ -9,20 +9,30 @@ import logging
 from datetime import date, timedelta
 from typing import Optional
 
-from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
-
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Twilio is optional — if not installed the app still starts but WhatsApp is disabled
+try:
+    from twilio.rest import Client as TwilioClient
+    from twilio.base.exceptions import TwilioRestException
+    _TWILIO_AVAILABLE = True
+except ImportError:
+    TwilioClient = None  # type: ignore[assignment,misc]
+    TwilioRestException = Exception  # type: ignore[assignment,misc]
+    _TWILIO_AVAILABLE = False
+    logger.warning("twilio package not installed — WhatsApp notifications disabled")
 
-def _get_client() -> Optional[Client]:
-    """Return a Twilio client, or None if credentials are missing."""
+
+def _get_client():
+    """Return a Twilio client, or None if unavailable."""
+    if not _TWILIO_AVAILABLE:
+        return None
     if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
         logger.warning("Twilio credentials not configured — skipping WhatsApp notification")
         return None
-    return Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    return TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
 
 def send_whatsapp(body: str) -> bool:
