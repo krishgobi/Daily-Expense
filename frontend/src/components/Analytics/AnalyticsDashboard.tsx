@@ -44,7 +44,7 @@ export const AnalyticsDashboard: React.FC = () => {
   const { expenses, isLoading } = useExpenses({ limit: 500 })
   const { transactions }        = useTransactions({ limit: 500 })
 
-  // ── Classify expenses with Gemini whenever expenses change ──────────────────
+  // ── Classify expenses with Groq whenever expenses change ────────────────────
   useEffect(() => {
     if (!expenses.length) return
     const unique = [...new Set(expenses.map((e) => e.purpose))]

@@ -177,6 +177,39 @@ class Report(Base):
         return f"<Report {self.report_type} - {self.period_start} to {self.period_end}>"
 
 
+class Conversation(Base):
+    """Chat Conversation Model"""
+
+    __tablename__ = "conversations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    title = Column(String(255), default="New Chat")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Conversation {self.title}>"
+
+
+class Message(Base):
+    """Chat Message Model"""
+
+    __tablename__ = "messages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(20), nullable=False)   # "user" or "assistant"
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    conversation = relationship("Conversation", back_populates="messages")
+
+    def __repr__(self):
+        return f"<Message {self.role[:4]} - {self.content[:30]}>"
+
+
 class AuditLog(Base):
     """Audit Log Model"""
 

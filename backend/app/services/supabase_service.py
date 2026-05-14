@@ -1,84 +1,122 @@
 """
-Supabase Service
-All direct Supabase DB operations for the chat system.
-Uses the service key so RLS doesn't block backend writes.
+Chat DB Service — SQLAlchemy implementation.
+Replaces the former Supabase-client implementation so the chat feature
+works without a valid SUPABASE_SERVICE_KEY.
 """
 
 import logging
+import uuid
+from datetime import datetime
 from typing import List, Dict, Any, Optional
-from supabase import create_client, Client
-from app.config import settings
+
+from sqlalchemy import text
+from app.database.connection import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-_client: Optional[Client] = None
 
-
-def get_supabase() -> Client:
-    global _client
-    if _client is None:
-        _client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-    return _client
+def _session():
+    """Return a plain SQLAlchemy session (caller must close it)."""
+    return SessionLocal()
 
 
 # ─── Conversations ────────────────────────────────────────────────────────────
 
 def create_conversation(user_id: str, title: str = "New Chat") -> Dict[str, Any]:
-    sb = get_supabase()
-    result = sb.table("conversations").insert({
-        "user_id": user_id,
-        "title":   title,
-    }).execute()
-    return result.data[0] if result.data else {}
+    db = _session()
+    try:
+        conv_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat()
+        db.execute(
+            text("INSERT INTO conversations (id, user_id, title, created_at) VALUES (:id, :uid, :title, :now)"),
+            {"id": conv_id, "uid": user_id, "title": title[:255], "now": now},
+        )
+        db.commit()
+        return {"id": conv_id, "user_id": user_id, "title": title, "created_at": now}
+    except Exception as exc:
+        db.rollback()
+        logger.error("create_conversation error: %s", exc)
+        raise
+    finally:
+        db.close()
 
 
 def get_conversations(user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
-    sb = get_supabase()
-    result = (
-        sb.table("conversations")
-        .select("*")
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    return result.data or []
+    db = _session()
+    try:
+        rows = db.execute(
+            text(
+                "SELECT id, user_id, title, created_at FROM conversations "
+                "WHERE user_id = :uid ORDER BY created_at DESC LIMIT :lim"
+            ),
+            {"uid": user_id, "lim": limit},
+        ).fetchall()
+        return [
+            {"id": str(r.id), "user_id": str(r.user_id), "title": r.title,
+             "created_at": r.created_at.isoformat() if r.created_at else ""}
+            for r in rows
+        ]
+    finally:
+        db.close()
 
 
 def get_conversation(conversation_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    sb = get_supabase()
-    result = (
-        sb.table("conversations")
-        .select("*")
-        .eq("id", conversation_id)
-        .eq("user_id", user_id)
-        .single()
-        .execute()
-    )
-    return result.data
-
-
-def update_conversation_title(conversation_id: str, title: str) -> None:
-    sb = get_supabase()
-    sb.table("conversations").update({"title": title}).eq("id", conversation_id).execute()
+    db = _session()
+    try:
+        row = db.execute(
+            text(
+                "SELECT id, user_id, title, created_at FROM conversations "
+                "WHERE id = :cid AND user_id = :uid"
+            ),
+            {"cid": conversation_id, "uid": user_id},
+        ).fetchone()
+        if not row:
+            return None
+        return {"id": str(row.id), "user_id": str(row.user_id), "title": row.title,
+                "created_at": row.created_at.isoformat() if row.created_at else ""}
+    finally:
+        db.close()
 
 
 def delete_conversation(conversation_id: str, user_id: str) -> None:
-    sb = get_supabase()
-    # Messages cascade-delete via FK
-    sb.table("conversations").delete().eq("id", conversation_id).eq("user_id", user_id).execute()
+    db = _session()
+    try:
+        db.execute(
+            text("DELETE FROM conversations WHERE id = :cid AND user_id = :uid"),
+            {"cid": conversation_id, "uid": user_id},
+        )
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("delete_conversation error: %s", exc)
+        raise
+    finally:
+        db.close()
 
 
 # ─── Messages ─────────────────────────────────────────────────────────────────
 
 def save_message(conversation_id: str, role: str, content: str) -> Dict[str, Any]:
-    sb = get_supabase()
-    result = sb.table("messages").insert({
-        "conversation_id": conversation_id,
-        "role":            role,
-        "content":         content,
-    }).execute()
-    return result.data[0] if result.data else {}
+    db = _session()
+    try:
+        msg_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat()
+        db.execute(
+            text(
+                "INSERT INTO messages (id, conversation_id, role, content, created_at) "
+                "VALUES (:id, :cid, :role, :content, :now)"
+            ),
+            {"id": msg_id, "cid": conversation_id, "role": role, "content": content, "now": now},
+        )
+        db.commit()
+        return {"id": msg_id, "conversation_id": conversation_id, "role": role,
+                "content": content, "created_at": now}
+    except Exception as exc:
+        db.rollback()
+        logger.error("save_message error: %s", exc)
+        raise
+    finally:
+        db.close()
 
 
 def get_messages(
@@ -86,96 +124,92 @@ def get_messages(
     limit: int = 50,
     offset: int = 0,
 ) -> List[Dict[str, Any]]:
-    sb = get_supabase()
-    result = (
-        sb.table("messages")
-        .select("*")
-        .eq("conversation_id", conversation_id)
-        .order("created_at", desc=False)
-        .range(offset, offset + limit - 1)
-        .execute()
-    )
-    return result.data or []
+    db = _session()
+    try:
+        rows = db.execute(
+            text(
+                "SELECT id, conversation_id, role, content, created_at FROM messages "
+                "WHERE conversation_id = :cid ORDER BY created_at ASC "
+                "LIMIT :lim OFFSET :off"
+            ),
+            {"cid": conversation_id, "lim": limit, "off": offset},
+        ).fetchall()
+        return [
+            {"id": str(r.id), "conversation_id": str(r.conversation_id),
+             "role": r.role, "content": r.content,
+             "created_at": r.created_at.isoformat() if r.created_at else ""}
+            for r in rows
+        ]
+    finally:
+        db.close()
 
 
 def get_recent_messages_for_context(
     conversation_id: str,
     limit: int = 20,
 ) -> List[Dict[str, str]]:
-    """Return last N messages as simple {role, content} dicts for Gemini."""
-    sb = get_supabase()
-    result = (
-        sb.table("messages")
-        .select("role, content")
-        .eq("conversation_id", conversation_id)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    # Reverse so oldest first
-    msgs = list(reversed(result.data or []))
-    return [{"role": m["role"], "content": m["content"]} for m in msgs]
+    """Return last N messages as {role, content} for Gemini context."""
+    db = _session()
+    try:
+        rows = db.execute(
+            text(
+                "SELECT role, content FROM messages "
+                "WHERE conversation_id = :cid "
+                "ORDER BY created_at DESC LIMIT :lim"
+            ),
+            {"cid": conversation_id, "lim": limit},
+        ).fetchall()
+        # Reverse so oldest-first
+        return [{"role": r.role, "content": r.content} for r in reversed(rows)]
+    finally:
+        db.close()
 
 
-def count_messages(conversation_id: str) -> int:
-    sb = get_supabase()
-    result = (
-        sb.table("messages")
-        .select("id", count="exact")
-        .eq("conversation_id", conversation_id)
-        .execute()
-    )
-    return result.count or 0
-
-
-# ─── User expense context (for Gemini context injection) ─────────────────────
+# ─── Expense context for Gemini ───────────────────────────────────────────────
 
 def get_user_expense_context(user_id: str, limit: int = 10) -> str:
     """
-    Fetch recent expenses + pending transactions and format as
-    a short text block to inject into the Gemini prompt.
+    Fetch recent expenses + pending transactions directly from the DB
+    and format as a short text block for Gemini.
     """
-    sb = get_supabase()
-    lines = []
+    db = _session()
+    lines: List[str] = []
 
     try:
-        exp = (
-            sb.table("expenses")
-            .select("purpose, amount, type, date, location")
-            .eq("user_id", user_id)
-            .order("date", desc=True)
-            .limit(limit)
-            .execute()
-        )
-        if exp.data:
+        expenses = db.execute(
+            text(
+                "SELECT purpose, amount, type, date, location FROM expenses "
+                "WHERE user_id = :uid ORDER BY date DESC LIMIT :lim"
+            ),
+            {"uid": user_id, "lim": limit},
+        ).fetchall()
+        if expenses:
             lines.append("Recent expenses:")
-            for e in exp.data:
-                lines.append(
-                    f"  • {e['date']} — {e['purpose']} ₹{e['amount']} ({e['type']})"
-                    + (f" at {e['location']}" if e.get("location") else "")
-                )
+            for e in expenses:
+                loc = f" at {e.location}" if e.location else ""
+                lines.append(f"  • {e.date} — {e.purpose} ₹{e.amount} ({e.type}){loc}")
     except Exception as ex:
-        logger.warning(f"Could not fetch expenses for context: {ex}")
+        logger.warning("Could not fetch expenses for context: %s", ex)
 
     try:
-        tx = (
-            sb.table("transactions")
-            .select("transaction_type, person_name, amount, status, expected_return_date")
-            .eq("user_id", user_id)
-            .eq("status", "PENDING")
-            .order("given_date", desc=True)
-            .limit(5)
-            .execute()
-        )
-        if tx.data:
+        txns = db.execute(
+            text(
+                "SELECT transaction_type, person_name, amount, status, expected_return_date "
+                "FROM transactions WHERE user_id = :uid AND status = 'PENDING' "
+                "ORDER BY given_date DESC LIMIT 5"
+            ),
+            {"uid": user_id},
+        ).fetchall()
+        if txns:
             lines.append("\nPending transactions:")
-            for t in tx.data:
-                direction = "from" if t["transaction_type"] == "BORROWED" else "to"
+            for t in txns:
+                direction = "from" if t.transaction_type == "BORROWED" else "to"
+                due = f" (due {t.expected_return_date})" if t.expected_return_date else ""
                 lines.append(
-                    f"  • {t['transaction_type']} ₹{t['amount']} {direction} {t['person_name']}"
-                    + (f" (due {t['expected_return_date']})" if t.get("expected_return_date") else "")
+                    f"  • {t.transaction_type} ₹{t.amount} {direction} {t.person_name}{due}"
                 )
     except Exception as ex:
-        logger.warning(f"Could not fetch transactions for context: {ex}")
+        logger.warning("Could not fetch transactions for context: %s", ex)
 
+    db.close()
     return "\n".join(lines)

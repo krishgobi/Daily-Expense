@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash:generateContent"
+    "gemini-2.0-flash-lite:generateContent"
 )
 
 SYSTEM_PROMPT = """You are Tracksy AI, a smart personal finance assistant built into an expense tracker app.

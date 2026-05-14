@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str = ""
 
-    # Gemini API
-    GEMINI_API_KEY: str = ""
+    # Groq API
+    GROQ_API_KEY: str = ""
 
     # Twilio WhatsApp
     TWILIO_ACCOUNT_SID: str = ""

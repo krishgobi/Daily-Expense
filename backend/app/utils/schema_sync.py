@@ -148,14 +148,39 @@ def run_schema_sync() -> None:
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS file_size INTEGER"))
             connection.execute(text(f"ALTER TABLE IF EXISTS {table_name} ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP DEFAULT NOW()"))
         
-        # Create chat tables for RAG system only if chat is enabled
+        # Chat tables (conversations + messages) — always created
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                title VARCHAR(255) DEFAULT 'New Chat',
+                created_at TIMESTAMP DEFAULT NOW() NOT NULL
+            )
+        """))
+        connection.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id)"
+        ))
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                role VARCHAR(20) NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW() NOT NULL
+            )
+        """))
+        connection.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id)"
+        ))
+
+        # Legacy RAG chat tables (optional)
         if CHAT_ENABLED:
             try:
                 connection.execute(text(CHAT_HISTORY_TABLE_SQL))
                 connection.execute(text(RAG_CONTEXT_TABLE_SQL))
                 connection.execute(text(SIMILARITY_SEARCH_FUNCTION_SQL))
             except Exception as e:
-                print(f"Warning: Failed to create chat tables: {e}")
+                print(f"Warning: Failed to create legacy chat tables: {e}")
 
 
 if __name__ == "__main__":

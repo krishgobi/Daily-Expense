@@ -24,8 +24,8 @@ python -m alembic upgrade head  # Run migrations
 python -m uvicorn app.main:app --reload
 ```
 
-Backend runs on: http://localhost:8001
-API Docs: http://localhost:8001/docs
+Backend runs on: http://localhost:8000
+API Docs: http://localhost:8000/docs
 
 #### Frontend Setup
 ```bash

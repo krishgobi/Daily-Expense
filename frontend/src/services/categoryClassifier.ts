@@ -69,15 +69,16 @@ function classifyByKeyword(purpose: string): CategoryId {
 
 const cache = new Map<string, CategoryId>()
 
-// ─── Gemini batch classifier ──────────────────────────────────────────────────
+// ─── Groq batch classifier ───────────────────────────────────────────────────
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
-const GEMINI_URL     = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string | undefined
+const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions'
+const GROQ_MODEL   = 'llama-3.3-70b-versatile'
 
 const CATEGORY_IDS = CATEGORIES.map((c) => c.id).join(', ')
 
 /**
- * Classify a batch of expense purposes using Gemini.
+ * Classify a batch of expense purposes using Groq.
  * Returns a map of purpose → categoryId.
  * Falls back to keyword matching on any error.
  */
@@ -96,8 +97,8 @@ export async function classifyExpenses(
 
   if (toClassify.length === 0) return result
 
-  // Try Gemini
-  if (GEMINI_API_KEY) {
+  // Try Groq
+  if (GROQ_API_KEY) {
     try {
       const prompt = `You are an expense categorizer. Given a list of expense descriptions, classify each one into exactly one of these categories: ${CATEGORY_IDS}.
 
@@ -115,29 +116,32 @@ Rules:
 - "mutual fund", "sip", "insurance" → investment
 - anything else → other
 
-Respond ONLY with a JSON object mapping each description to its category id. No explanation.
+Respond ONLY with a JSON object mapping each index to its category id. No explanation.
 
 Descriptions:
 ${toClassify.map((p, i) => `${i + 1}. "${p}"`).join('\n')}`
 
-      const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      const res = await fetch(GROQ_URL, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`,
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 512 },
+          model:       GROQ_MODEL,
+          messages:    [{ role: 'user', content: prompt }],
+          temperature: 0,
+          max_tokens:  512,
         }),
       })
 
       if (res.ok) {
         const json = await res.json()
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+        const text = json?.choices?.[0]?.message?.content ?? ''
         // Extract JSON from response (may be wrapped in ```json ... ```)
         const jsonMatch = text.match(/\{[\s\S]*\}/)
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]) as Record<string, string>
-          // Map by index (Gemini returns "1": "food", "2": "transport", etc.)
-          // or by the description text itself
           toClassify.forEach((purpose, idx) => {
             const key = String(idx + 1)
             const raw = (parsed[key] ?? parsed[purpose] ?? '').toLowerCase().trim() as CategoryId

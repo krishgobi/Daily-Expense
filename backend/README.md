@@ -26,9 +26,9 @@ cp .env.example .env
 python -m uvicorn app.main:app --reload
 ```
 
-API will be available at: http://localhost:8001  
-API Docs: http://localhost:8001/docs  
-ReDoc: http://localhost:8001/redoc
+API will be available at: http://localhost:8000  
+API Docs: http://localhost:8000/docs  
+ReDoc: http://localhost:8000/redoc
 
 ## Project Structure
 

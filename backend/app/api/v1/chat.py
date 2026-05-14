@@ -1,6 +1,6 @@
 """
 Chat API Routes v2
-WhatsApp-style persistent chat with Gemini AI.
+WhatsApp-style persistent chat with Groq AI.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query

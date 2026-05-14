@@ -1,13 +1,13 @@
 """
 Chat Service v2
-Orchestrates: Supabase persistence + Gemini AI responses.
+Orchestrates: Supabase persistence + Groq AI responses.
 Clean separation — no DB logic here, no AI logic in supabase_service.
 """
 
 import logging
 from typing import Dict, Any, List, Optional
 from app.services import supabase_service as db
-from app.services import gemini_service as ai
+from app.services import groq_service as ai
 
 logger = logging.getLogger(__name__)
 
