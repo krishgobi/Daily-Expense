@@ -4,8 +4,9 @@
 .env.*.local
 
 # Backend
-backend/__pycache__/
-backend/*.pyc
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 backend/.venv/
 backend/venv/
 backend/.pytest_cache/
