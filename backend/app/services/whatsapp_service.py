@@ -71,6 +71,7 @@ def notify_you_must_return(
     due_date: Optional[date],
     transaction_id: str,
     overdue_days: int = 0,
+    to: Optional[str] = None,
 ) -> bool:
     """
     Remind the user that THEY need to return money to someone.
@@ -95,7 +96,7 @@ def notify_you_must_return(
             f"Don't forget to return it!\n\n"
             f"📲 View transaction: {url}"
         )
-    return send_whatsapp(body)
+    return send_whatsapp(body, to=to)
 
 
 def notify_they_must_return(
@@ -104,6 +105,7 @@ def notify_they_must_return(
     due_date: Optional[date],
     transaction_id: str,
     overdue_days: int = 0,
+    to: Optional[str] = None,
 ) -> bool:
     """
     Remind the user to collect money from someone.
@@ -128,13 +130,14 @@ def notify_they_must_return(
             f"Ask them to return it today!\n\n"
             f"📲 View transaction: {url}"
         )
-    return send_whatsapp(body)
+    return send_whatsapp(body, to=to)
 
 
 def notify_daily_summary(
     due_today_count: int,
     overdue_count: int,
     total_pending: float,
+    to: Optional[str] = None,
 ) -> bool:
     """Send a daily morning summary of pending transactions."""
     if due_today_count == 0 and overdue_count == 0:
@@ -155,4 +158,16 @@ def notify_daily_summary(
     body += f"\n💰 Total pending: *₹{total_pending:,.2f}*\n\n"
     body += f"📲 Review now: {url}"
 
-    return send_whatsapp(body)
+    return send_whatsapp(body, to=to)
+
+
+def notify_salary_day(to: Optional[str] = None) -> bool:
+    """Salary day reminder — sent to the WhatsApp user."""
+    url = f"{settings.APP_URL}/dashboard"
+    body = (
+        f"💰 *Salary Reminder — Tracksy.AI*\n\n"
+        f"Hope you've received your monthly salary today! 🎉\n\n"
+        f"Don't forget to log your income so your savings calculation stays accurate.\n\n"
+        f"📲 Log your income now: {url}"
+    )
+    return send_whatsapp(body, to=to)

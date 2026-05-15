@@ -1,23 +1,26 @@
 """
 Notification Scheduler
-Uses APScheduler to run WhatsApp reminders automatically:
-  - Every morning at 9 AM: daily summary
-  - Every morning at 9 AM: individual reminders for due/overdue transactions
+Uses APScheduler to run reminders automatically at 9 AM IST:
+  - Daily summary of due/overdue transactions
+  - Individual reminders per transaction
+  - Salary day income-logging reminder
+
+Routing:
+  gobibhuvi1415@gmail.com  → WhatsApp (Twilio)
+  everyone else            → Email (SMTP)
 """
 
 import logging
 from datetime import date, timedelta
 from typing import Optional
 
+from sqlalchemy import text
+
 from app.config import settings
 from app.database.connection import SessionLocal
 from app.models import Transaction
-from app.services.whatsapp_service import (
-    notify_you_must_return,
-    notify_they_must_return,
-    notify_daily_summary,
-    send_whatsapp,
-)
+import app.services.whatsapp_service as wa
+import app.services.email_service as em
 
 logger = logging.getLogger(__name__)
 
@@ -35,21 +38,42 @@ except ImportError:
 _scheduler: Optional[object] = None
 
 
+# ─── Routing helper ───────────────────────────────────────────────────────────
+
+def _is_whatsapp_user(email: str) -> bool:
+    return email.lower() == settings.WHATSAPP_USER_EMAIL.lower()
+
+
+def _get_user_info(db, user_id: str):
+    """Return (email, whatsapp_number) for a user_id."""
+    row = db.execute(
+        text(
+            "SELECT u.email, us.whatsapp_number "
+            "FROM users u "
+            "LEFT JOIN user_settings us ON us.user_id = u.id "
+            "WHERE u.id = :uid"
+        ),
+        {"uid": user_id},
+    ).fetchone()
+    if not row:
+        return None, None
+    return row.email, row.whatsapp_number
+
+
 # ─── Job functions ────────────────────────────────────────────────────────────
 
 def run_daily_reminders():
     """
-    Runs every morning. Checks all PENDING transactions and sends:
-    1. A daily summary (due today + overdue count)
-    2. Individual reminders for each due/overdue transaction
+    Runs every morning. Groups PENDING transactions by user, then:
+    - WhatsApp user  → send via Twilio WhatsApp
+    - Everyone else  → send via email
     """
-    logger.info("Running daily WhatsApp reminders…")
+    logger.info("Running daily reminders…")
     db = SessionLocal()
     try:
-        today = date.today()
+        today    = date.today()
         tomorrow = today + timedelta(days=1)
 
-        # Fetch all pending transactions with a due date
         pending = (
             db.query(Transaction)
             .filter(
@@ -59,76 +83,67 @@ def run_daily_reminders():
             .all()
         )
 
-        due_today   = [t for t in pending if t.expected_return_date == today]
-        due_tomorrow = [t for t in pending if t.expected_return_date == tomorrow]
-        overdue     = [t for t in pending if t.expected_return_date < today]
+        # Group by user_id so each user gets one summary + individual reminders
+        from collections import defaultdict
+        by_user: dict = defaultdict(list)
+        for t in pending:
+            by_user[str(t.user_id)].append(t)
 
-        # ── Daily summary ──────────────────────────────────────────────────
-        total_pending = sum(t.amount for t in pending)
-        notify_daily_summary(
-            due_today_count=len(due_today) + len(due_tomorrow),
-            overdue_count=len(overdue),
-            total_pending=float(total_pending),
-        )
+        for user_id, txns in by_user.items():
+            email, whatsapp_number = _get_user_info(db, user_id)
+            if not email:
+                continue
 
-        # ── Individual reminders for overdue ──────────────────────────────
-        for t in overdue:
-            overdue_days = (today - t.expected_return_date).days
-            if t.transaction_type == "BORROWED":
-                notify_you_must_return(
-                    person_name=t.person_name,
-                    amount=float(t.amount),
-                    due_date=t.expected_return_date,
-                    transaction_id=str(t.id),
-                    overdue_days=overdue_days,
-                )
-            else:  # LENT
-                notify_they_must_return(
-                    person_name=t.person_name,
-                    amount=float(t.amount),
-                    due_date=t.expected_return_date,
-                    transaction_id=str(t.id),
-                    overdue_days=overdue_days,
-                )
+            use_wa = _is_whatsapp_user(email)
 
-        # ── Individual reminders for due today ────────────────────────────
-        for t in due_today:
-            if t.transaction_type == "BORROWED":
-                notify_you_must_return(
-                    person_name=t.person_name,
-                    amount=float(t.amount),
-                    due_date=t.expected_return_date,
-                    transaction_id=str(t.id),
+            due_today    = [t for t in txns if t.expected_return_date == today]
+            due_tomorrow = [t for t in txns if t.expected_return_date == tomorrow]
+            overdue      = [t for t in txns if t.expected_return_date < today]
+            total_pend   = float(sum(t.amount for t in txns))
+
+            # ── Daily summary ──────────────────────────────────────────────
+            if use_wa:
+                wa.notify_daily_summary(
+                    due_today_count=len(due_today) + len(due_tomorrow),
+                    overdue_count=len(overdue),
+                    total_pending=total_pend,
+                    to=whatsapp_number,
                 )
             else:
-                notify_they_must_return(
-                    person_name=t.person_name,
-                    amount=float(t.amount),
-                    due_date=t.expected_return_date,
-                    transaction_id=str(t.id),
+                em.notify_daily_summary(
+                    to_email=email,
+                    due_today_count=len(due_today) + len(due_tomorrow),
+                    overdue_count=len(overdue),
+                    total_pending=total_pend,
                 )
 
-        # ── Reminders for due tomorrow (heads-up) ─────────────────────────
-        for t in due_tomorrow:
-            if t.transaction_type == "BORROWED":
-                notify_you_must_return(
-                    person_name=t.person_name,
-                    amount=float(t.amount),
-                    due_date=t.expected_return_date,
-                    transaction_id=str(t.id),
-                )
-            else:
-                notify_they_must_return(
-                    person_name=t.person_name,
-                    amount=float(t.amount),
-                    due_date=t.expected_return_date,
-                    transaction_id=str(t.id),
-                )
+            # ── Individual reminders ───────────────────────────────────────
+            for t in overdue:
+                days = (today - t.expected_return_date).days
+                if t.transaction_type == "BORROWED":
+                    if use_wa:
+                        wa.notify_you_must_return(t.person_name, float(t.amount), t.expected_return_date, str(t.id), overdue_days=days, to=whatsapp_number)
+                    else:
+                        em.notify_you_must_return(email, t.person_name, float(t.amount), t.expected_return_date, str(t.id), overdue_days=days)
+                else:
+                    if use_wa:
+                        wa.notify_they_must_return(t.person_name, float(t.amount), t.expected_return_date, str(t.id), overdue_days=days, to=whatsapp_number)
+                    else:
+                        em.notify_they_must_return(email, t.person_name, float(t.amount), t.expected_return_date, str(t.id), overdue_days=days)
 
-        logger.info(
-            f"Reminders sent — overdue: {len(overdue)}, "
-            f"due today: {len(due_today)}, due tomorrow: {len(due_tomorrow)}"
-        )
+            for t in [*due_today, *due_tomorrow]:
+                if t.transaction_type == "BORROWED":
+                    if use_wa:
+                        wa.notify_you_must_return(t.person_name, float(t.amount), t.expected_return_date, str(t.id), to=whatsapp_number)
+                    else:
+                        em.notify_you_must_return(email, t.person_name, float(t.amount), t.expected_return_date, str(t.id))
+                else:
+                    if use_wa:
+                        wa.notify_they_must_return(t.person_name, float(t.amount), t.expected_return_date, str(t.id), to=whatsapp_number)
+                    else:
+                        em.notify_they_must_return(email, t.person_name, float(t.amount), t.expected_return_date, str(t.id))
+
+        logger.info("Daily reminders dispatched")
 
     except Exception as e:
         logger.error(f"Error in daily reminders job: {e}")
@@ -138,33 +153,29 @@ def run_daily_reminders():
 
 def run_salary_reminders():
     """
-    Runs every morning. Finds users whose salary_day matches today's date
-    and sends them a WhatsApp reminder to log their income.
+    Runs every morning. Finds users whose salary_day matches today
+    and sends a reminder to log their income.
     """
     logger.info("Checking salary day reminders…")
     db = SessionLocal()
     try:
         today = date.today()
-        from sqlalchemy import text
         rows = db.execute(
             text(
-                "SELECT user_id, whatsapp_number, salary_day "
-                "FROM user_settings "
-                "WHERE salary_day = :day AND whatsapp_number IS NOT NULL"
+                "SELECT us.user_id, us.whatsapp_number, u.email "
+                "FROM user_settings us "
+                "JOIN users u ON u.id = us.user_id "
+                "WHERE us.salary_day = :day"
             ),
             {"day": today.day},
         ).fetchall()
 
         for row in rows:
-            url = f"{settings.APP_URL}/dashboard"
-            body = (
-                f"💰 *Salary Reminder — Tracksy.AI*\n\n"
-                f"Hope you've received your monthly salary today! 🎉\n\n"
-                f"Don't forget to log your income so your savings calculation stays accurate.\n\n"
-                f"📲 Log your income now: {url}"
-            )
-            send_whatsapp(body, to=row.whatsapp_number)
-            logger.info(f"Salary reminder sent to user {row.user_id}")
+            if _is_whatsapp_user(row.email):
+                wa.notify_salary_day(to=row.whatsapp_number)
+            else:
+                em.notify_salary_day(to_email=row.email)
+            logger.info(f"Salary reminder sent to {row.email}")
 
     except Exception as e:
         logger.error(f"Error in salary reminders job: {e}")
@@ -189,7 +200,7 @@ def start_scheduler():
         run_daily_reminders,
         trigger=CronTrigger(hour=9, minute=0),
         id="daily_reminders",
-        name="Daily WhatsApp Reminders",
+        name="Daily Reminders",
         replace_existing=True,
         misfire_grace_time=3600,
     )
@@ -197,7 +208,7 @@ def start_scheduler():
         run_salary_reminders,
         trigger=CronTrigger(hour=9, minute=0),
         id="salary_reminders",
-        name="Salary Day WhatsApp Reminders",
+        name="Salary Day Reminders",
         replace_existing=True,
         misfire_grace_time=3600,
     )

@@ -39,6 +39,17 @@ class Settings(BaseSettings):
     TWILIO_WHATSAPP_TO: str = ""
     APP_URL: str = "http://localhost:5173"
 
+    # Email (SMTP) — for non-WhatsApp users
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_NAME: str = "Tracksy.AI"
+    SMTP_FROM_EMAIL: str = ""
+
+    # Routing — only this user gets WhatsApp; all others get email
+    WHATSAPP_USER_EMAIL: str = "gobibhuvi1415@gmail.com"
+
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
