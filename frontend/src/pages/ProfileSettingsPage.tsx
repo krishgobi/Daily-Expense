@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Camera, CheckCircle2, Loader2, ArrowLeft, User, Mail, Shield, Phone, CalendarDays } from 'lucide-react'
+import { AlertCircle, Camera, CheckCircle2, Loader2, ArrowLeft, User, Mail, Shield, Phone, CalendarDays, IndianRupee } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/logo.svg'
@@ -14,9 +14,10 @@ export const ProfileSettingsPage: React.FC = () => {
   const [error, setError]                 = useState('')
   const [success, setSuccess]             = useState('')
 
-  // Notification settings
+  // Notification + balance settings
   const [whatsapp, setWhatsapp]           = useState('+91')
   const [salaryDay, setSalaryDay]         = useState<number | ''>('')
+  const [initialBalance, setInitialBal]   = useState('')
   const [notifSaving, setNotifSaving]     = useState(false)
   const [notifError, setNotifError]       = useState('')
   const [notifSuccess, setNotifSuccess]   = useState('')
@@ -29,6 +30,7 @@ export const ProfileSettingsPage: React.FC = () => {
       .then((s: UserSettings) => {
         setWhatsapp(s.whatsapp_number || '+91')
         setSalaryDay(s.salary_day ?? '')
+        setInitialBal(s.initial_balance ? String(s.initial_balance) : '')
       })
       .catch(() => {})
       .finally(() => setNotifLoading(false))
@@ -55,11 +57,13 @@ export const ProfileSettingsPage: React.FC = () => {
     if (day !== null && (day < 1 || day > 31)) { setNotifError('Salary day must be between 1 and 31.'); return }
     setNotifSaving(true)
     try {
+      const bal = initialBalance ? parseFloat(initialBalance) : 0
       await settingsService.updateSettings({
         salary_day: day,
         whatsapp_number: whatsapp.trim() || null,
+        initial_balance: isNaN(bal) ? 0 : bal,
       })
-      setNotifSuccess('Notification settings saved.')
+      setNotifSuccess('Settings saved.')
     } catch {
       setNotifError('Failed to save. Try again.')
     } finally {
@@ -225,6 +229,26 @@ export const ProfileSettingsPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
+                  <label htmlFor="initialBalance" className="label">Initial / current balance (₹)</label>
+                  <div className="relative">
+                    <IndianRupee className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      id="initialBalance"
+                      type="number"
+                      value={initialBalance}
+                      onChange={(e) => setInitialBal(e.target.value)}
+                      disabled={notifSaving}
+                      placeholder="e.g. 100000"
+                      className="input pl-10"
+                      min="0"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Your starting balance — income and expenses will be added/subtracted from this
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
                   <label htmlFor="salaryDay" className="label">Salary date</label>
                   <div className="relative">
                     <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -244,7 +268,7 @@ export const ProfileSettingsPage: React.FC = () => {
                     </select>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    You'll get a WhatsApp reminder at 9 AM on this day to log your salary
+                    You'll get a reminder at 9 AM on this day to log your monthly income
                   </p>
                 </div>
 

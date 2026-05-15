@@ -1,26 +1,29 @@
 import { api } from './api'
 
 export interface UserSettings {
-  salary_day: number | null
+  salary_day:      number | null
   whatsapp_number: string | null
+  initial_balance: number
 }
 
 export interface MonthlyIncome {
-  year: number
-  month: number
-  income: number
-  expenses: number
-  savings: number
+  year:            number
+  month:           number
+  month_income:    number
+  month_expenses:  number
+  month_savings:   number
+  initial_balance: number
+  overall_balance: number
 }
 
 export interface UpdateSettingsPayload {
-  salary_day?: number | null
+  salary_day?:      number | null
   whatsapp_number?: string | null
+  initial_balance?: number
 }
 
 export interface UpdateIncomePayload {
-  income: number
-  savings?: number | null
+  income?: number | null
 }
 
 const settingsService = {

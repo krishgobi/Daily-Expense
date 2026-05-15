@@ -173,18 +173,20 @@ def run_schema_sync() -> None:
             "CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id)"
         ))
 
-        # User settings (salary day + WhatsApp number)
+        # User settings (salary day + WhatsApp number + initial balance)
         connection.execute(text("""
             CREATE TABLE IF NOT EXISTS user_settings (
                 user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                 salary_day INTEGER,
                 whatsapp_number VARCHAR(20),
+                initial_balance DOUBLE PRECISION DEFAULT 0,
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             )
         """))
         connection.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS salary_day INTEGER"))
         connection.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)"))
+        connection.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS initial_balance DOUBLE PRECISION DEFAULT 0"))
 
         # Monthly income and savings
         connection.execute(text("""
