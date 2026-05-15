@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import authService, { User } from '../services/authService'
 
 interface AuthContextType {
@@ -21,6 +22,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -99,6 +101,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     await authService.logout()
+    queryClient.clear()   // wipe all cached data so the next user starts fresh
     setUser(null)
     setIsAuthenticated(false)
   }
