@@ -9,10 +9,8 @@ from datetime import datetime, date
 import logging
 import os
 
-from app.models import Report
-from app.services.expense_service import ExpenseService
-from app.services.transaction_service import TransactionService
-from app.services.analytics_service import AnalyticsService
+from sqlalchemy import func
+from app.models import Report, Expense, Transaction, ExpenseCategory
 from app.exceptions import NotFoundException
 
 logger = logging.getLogger(__name__)
@@ -119,53 +117,115 @@ class ReportService:
         period_end: date,
     ) -> dict:
         """Gather all data needed for a report."""
-        # Get expenses for period
-        expenses, _ = ExpenseService.list_expenses(
-            db,
-            user_id,
-            date_from=period_start,
-            date_to=period_end,
-            limit=10000,
+        from sqlalchemy.orm import joinedload
+        # Query directly to avoid service-layer pagination caps; eager-load category
+        expenses = (
+            db.query(Expense)
+            .options(joinedload(Expense.category))
+            .filter(
+                Expense.user_id == user_id,
+                Expense.date >= period_start,
+                Expense.date <= period_end,
+            )
+            .order_by(Expense.date.asc())
+            .all()
         )
 
-        # Get transactions for period
-        transactions, _ = TransactionService.list_transactions(
-            db,
-            user_id,
-            limit=10000,
+        transactions = (
+            db.query(Transaction)
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.given_date >= period_start,
+                Transaction.given_date <= period_end,
+            )
+            .all()
         )
 
-        # Filter transactions by date
-        filtered_transactions = [
-            t for t in transactions
-            if period_start <= t.given_date <= period_end
+        total_expenses = float(sum(e.amount for e in expenses))
+        total_borrowed = float(sum(t.amount for t in transactions if t.transaction_type == "BORROWED"))
+        total_lent     = float(sum(t.amount for t in transactions if t.transaction_type == "LENT"))
+
+        # Category breakdown across the full date range
+        cat_rows = (
+            db.query(
+                ExpenseCategory.name,
+                ExpenseCategory.icon,
+                ExpenseCategory.color,
+                func.sum(Expense.amount).label("total"),
+                func.count(Expense.id).label("count"),
+            )
+            .join(Expense, ExpenseCategory.id == Expense.category_id)
+            .filter(
+                Expense.user_id == user_id,
+                Expense.date >= period_start,
+                Expense.date <= period_end,
+            )
+            .group_by(ExpenseCategory.id, ExpenseCategory.name, ExpenseCategory.icon, ExpenseCategory.color)
+            .order_by(func.sum(Expense.amount).desc())
+            .all()
+        )
+        cat_total = sum(float(r.total) for r in cat_rows if r.total)
+        category_breakdown = [
+            {
+                "name":       r.name,
+                "icon":       r.icon or "",
+                "color":      r.color or "",
+                "amount":     float(r.total) if r.total else 0.0,
+                "count":      r.count or 0,
+                "percentage": round(float(r.total) / cat_total * 100, 2) if cat_total else 0.0,
+            }
+            for r in cat_rows if r.total
         ]
 
-        # Calculate totals
-        total_expenses = sum(e.amount for e in expenses)
-        total_borrowed = sum(
-            t.amount for t in filtered_transactions if t.transaction_type == "BORROWED"
+        # Payment type breakdown across the full date range
+        type_rows = (
+            db.query(
+                Expense.type,
+                func.sum(Expense.amount).label("total"),
+                func.count(Expense.id).label("count"),
+            )
+            .filter(
+                Expense.user_id == user_id,
+                Expense.date >= period_start,
+                Expense.date <= period_end,
+            )
+            .group_by(Expense.type)
+            .all()
         )
-        total_lent = sum(
-            t.amount for t in filtered_transactions if t.transaction_type == "LENT"
-        )
+        type_breakdown = {"CASH": {"amount": 0.0, "count": 0, "percentage": 0.0},
+                          "DIGITAL": {"amount": 0.0, "count": 0, "percentage": 0.0}}
+        for r in type_rows:
+            key = r.type if r.type in type_breakdown else "CASH"
+            type_breakdown[key]["amount"] = float(r.total) if r.total else 0.0
+            type_breakdown[key]["count"]  = r.count or 0
+        type_total = type_breakdown["CASH"]["amount"] + type_breakdown["DIGITAL"]["amount"]
+        if type_total:
+            for k in type_breakdown:
+                type_breakdown[k]["percentage"] = round(type_breakdown[k]["amount"] / type_total * 100, 2)
 
-        # Get breakdowns
-        category_breakdown = AnalyticsService.get_category_breakdown(
-            db, user_id, period_start.year, period_start.month
-        )
-        type_breakdown = AnalyticsService.get_expense_type_breakdown(
-            db, user_id, period_start.year, period_start.month
-        )
+        # Build serialisable expense rows (avoids DetachedInstanceError in generators)
+        expense_rows = [
+            {
+                "date":           e.date.strftime("%d %b %Y"),
+                "purpose":        e.purpose,
+                "category":       e.category.name if e.category else "Uncategorized",
+                "type":           e.type,
+                "amount":         float(e.amount),
+                "payment_method": e.payment_method or "",
+                "description":    e.description or "",
+            }
+            for e in expenses
+        ]
 
         return {
-            "expenses": expenses,
-            "transactions": filtered_transactions,
-            "total_expenses": total_expenses,
-            "total_borrowed": total_borrowed,
-            "total_lent": total_lent,
+            "expense_rows":       expense_rows,
+            "expenses":           expenses,
+            "transactions":       transactions,
+            "total_expenses":     total_expenses,
+            "total_borrowed":     total_borrowed,
+            "total_lent":         total_lent,
             "category_breakdown": category_breakdown,
-            "type_breakdown": type_breakdown,
-            "period_start": period_start,
-            "period_end": period_end,
+            "type_breakdown":     type_breakdown,
+            "period_start":       period_start,
+            "period_end":         period_end,
         }

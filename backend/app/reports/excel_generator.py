@@ -1,135 +1,208 @@
 """
 Excel Report Generator
-Generates Excel reports with multiple sheets
 """
 
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from datetime import date
 import io
+from datetime import date
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+from openpyxl.chart import PieChart, BarChart, Reference
+from openpyxl.chart.series import DataPoint
+from openpyxl.utils import get_column_letter
+
+
+# ── Style helpers ──────────────────────────────────────────────────────────────
+def _fill(hex_color: str) -> PatternFill:
+    return PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
+
+def _font(bold=False, color="000000", size=10) -> Font:
+    return Font(bold=bold, color=color, size=size)
+
+def _border() -> Border:
+    s = Side(style="thin", color="E5E7EB")
+    return Border(left=s, right=s, top=s, bottom=s)
+
+def _center() -> Alignment:
+    return Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+def _left() -> Alignment:
+    return Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+HEADER_FILL   = _fill("1F2937")
+HEADER_FONT   = _font(bold=True, color="FFFFFF", size=10)
+ALT_FILL      = _fill("F9FAFB")
+BRAND_FILL    = _fill("3B82F6")
+TITLE_FONT    = _font(bold=True, color="1F2937", size=13)
+LABEL_FONT    = _font(bold=True, color="374151", size=10)
+CURRENCY_FMT  = '#,##0.00'
+
+PIE_COLORS = [
+    "3B82F6", "10B981", "F59E0B", "EF4444", "8B5CF6",
+    "EC4899", "14B8A6", "F97316", "6366F1", "84CC16",
+]
+
+
+def _apply_header_row(ws, row: int, headers: list[str]):
+    for col, h in enumerate(headers, 1):
+        c = ws.cell(row=row, column=col, value=h)
+        c.fill   = HEADER_FILL
+        c.font   = HEADER_FONT
+        c.alignment = _center()
+        c.border = _border()
+
+
+def _apply_data_row(ws, row: int, values: list, alt: bool = False):
+    fill = ALT_FILL if alt else _fill("FFFFFF")
+    for col, v in enumerate(values, 1):
+        c = ws.cell(row=row, column=col, value=v)
+        c.fill   = fill
+        c.border = _border()
+        c.alignment = _left()
+        c.font   = _font(size=9)
 
 
 class ExcelReportGenerator:
-    """Generate Excel reports."""
 
     @staticmethod
     def generate(report_data: dict, user_name: str) -> bytes:
-        """Generate Excel report from data."""
         wb = Workbook()
-        wb.remove(wb.active)  # Remove default sheet
+        wb.remove(wb.active)
 
-        # Define styles
-        header_fill = PatternFill(start_color="1F2937", end_color="1F2937", fill_type="solid")
-        header_font = Font(color="FFFFFF", bold=True, size=12)
-        title_font = Font(bold=True, size=14)
-        border = Border(
-            left=Side(style="thin"),
-            right=Side(style="thin"),
-            top=Side(style="thin"),
-            bottom=Side(style="thin"),
-        )
-        center_align = Alignment(horizontal="center", vertical="center")
-        currency_format = "₹#,##0.00"
+        # ── Sheet 1: Summary ──────────────────────────────────────────────────
+        ws = wb.create_sheet("Summary")
+        ws.column_dimensions["A"].width = 22
+        ws.column_dimensions["B"].width = 26
 
-        # Summary Sheet
-        ws_summary = wb.create_sheet("Summary")
-        ws_summary["A1"] = "💰 Expense Report Summary"
-        ws_summary["A1"].font = title_font
-        ws_summary.merge_cells("A1:B1")
+        ws["A1"] = "Expense Report"
+        ws["A1"].font = TITLE_FONT
+        ws.merge_cells("A1:B1")
 
-        ws_summary["A3"] = "Report Generated:"
-        ws_summary["B3"] = date.today().strftime("%B %d, %Y")
+        info = [
+            ("Period",    f"{report_data['period_start'].strftime('%d %b %Y')} – {report_data['period_end'].strftime('%d %b %Y')}"),
+            ("For",       user_name),
+            ("Generated", date.today().strftime("%d %b %Y")),
+        ]
+        for r, (label, val) in enumerate(info, 3):
+            ws.cell(row=r, column=1, value=label).font = LABEL_FONT
+            ws.cell(row=r, column=2, value=val).font   = _font(size=10)
 
-        ws_summary["A4"] = "Period:"
-        ws_summary["B4"] = f"{report_data['period_start'].strftime('%B %d, %Y')} - {report_data['period_end'].strftime('%B %d, %Y')}"
+        ws["A7"] = "Metric"
+        ws["B7"] = "Amount"
+        ws["A7"].fill = HEADER_FILL;  ws["A7"].font = HEADER_FONT;  ws["A7"].alignment = _center()
+        ws["B7"].fill = HEADER_FILL;  ws["B7"].font = HEADER_FONT;  ws["B7"].alignment = _center()
 
-        ws_summary["A5"] = "For:"
-        ws_summary["B5"] = user_name
+        totals = [
+            ("Total Expenses", report_data["total_expenses"]),
+            ("Total Borrowed", report_data["total_borrowed"]),
+            ("Total Lent",     report_data["total_lent"]),
+        ]
+        for i, (label, val) in enumerate(totals, 8):
+            ws.cell(row=i, column=1, value=label).font = _font(size=10)
+            c = ws.cell(row=i, column=2, value=val)
+            c.number_format = CURRENCY_FMT
+            c.font = _font(bold=True, size=10)
+            if i % 2 == 0:
+                ws.cell(row=i, column=1).fill = ALT_FILL
+                c.fill = ALT_FILL
 
-        ws_summary["A7"] = "Metric"
-        ws_summary["B7"] = "Amount"
-        ws_summary["A7"].fill = header_fill
-        ws_summary["A7"].font = header_font
-        ws_summary["B7"].fill = header_fill
-        ws_summary["B7"].font = header_font
+        # ── Sheet 2: All Expenses ────────────────────────────────────────────
+        we = wb.create_sheet("All Expenses")
+        col_widths = [13, 28, 18, 10, 14, 14, 30]
+        col_letters = [get_column_letter(i+1) for i in range(7)]
+        for cl, w in zip(col_letters, col_widths):
+            we.column_dimensions[cl].width = w
 
-        ws_summary["A8"] = "Total Expenses"
-        ws_summary["B8"] = report_data["total_expenses"]
-        ws_summary["B8"].number_format = currency_format
+        we["A1"] = "All Expenses — Date Wise"
+        we["A1"].font = TITLE_FONT
+        we.merge_cells("A1:G1")
+        we.row_dimensions[1].height = 22
 
-        ws_summary["A9"] = "Total Borrowed"
-        ws_summary["B9"] = report_data["total_borrowed"]
-        ws_summary["B9"].number_format = currency_format
+        headers = ["Date", "Purpose", "Category", "Type", "Payment Method", "Amount", "Description"]
+        _apply_header_row(we, 3, headers)
+        we.row_dimensions[3].height = 18
 
-        ws_summary["A10"] = "Total Lent"
-        ws_summary["B10"] = report_data["total_lent"]
-        ws_summary["B10"].number_format = currency_format
+        expense_rows = report_data.get("expense_rows", [])
+        for i, e in enumerate(expense_rows):
+            r = i + 4
+            alt = i % 2 == 1
+            _apply_data_row(we, r, [
+                e["date"],
+                e["purpose"],
+                e["category"],
+                e["type"].capitalize(),
+                e["payment_method"] or "—",
+                e["amount"],
+                e["description"] or "",
+            ], alt=alt)
+            # Format amount column as currency
+            c = we.cell(row=r, column=6)
+            c.number_format = CURRENCY_FMT
+            c.alignment = Alignment(horizontal="right", vertical="center")
 
-        ws_summary.column_dimensions["A"].width = 20
-        ws_summary.column_dimensions["B"].width = 20
+        # Total row
+        total_row = len(expense_rows) + 4
+        we.cell(row=total_row, column=1, value="TOTAL").font = _font(bold=True, size=10)
+        tc = we.cell(row=total_row, column=6, value=report_data["total_expenses"])
+        tc.number_format = CURRENCY_FMT
+        tc.font = _font(bold=True, size=10)
+        tc.fill = _fill("DBEAFE")
 
-        # Category Breakdown Sheet
-        ws_categories = wb.create_sheet("Categories")
-        ws_categories["A1"] = "Category Breakdown"
-        ws_categories["A1"].font = title_font
-        ws_categories.merge_cells("A1:D1")
+        # Freeze header
+        we.freeze_panes = "A4"
 
-        headers = ["Category", "Amount", "Percentage", "Count"]
-        for col, header in enumerate(headers, 1):
-            cell = ws_categories.cell(row=3, column=col)
-            cell.value = header
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = center_align
+        # ── Sheet 3: Category Breakdown + Pie Chart ───────────────────────────
+        wc = wb.create_sheet("Categories")
+        wc.column_dimensions["A"].width = 22
+        wc.column_dimensions["B"].width = 16
+        wc.column_dimensions["C"].width = 14
+        wc.column_dimensions["D"].width = 10
 
-        row = 4
-        for cat in report_data["category_breakdown"]:
-            ws_categories.cell(row=row, column=1).value = f"{cat['icon']} {cat['name']}"
-            ws_categories.cell(row=row, column=2).value = cat["amount"]
-            ws_categories.cell(row=row, column=2).number_format = currency_format
-            ws_categories.cell(row=row, column=3).value = f"{cat['percentage']:.1f}%"
-            ws_categories.cell(row=row, column=4).value = cat["count"]
-            row += 1
+        wc["A1"] = "Spending by Category"
+        wc["A1"].font = TITLE_FONT
+        wc.merge_cells("A1:D1")
 
-        ws_categories.column_dimensions["A"].width = 20
-        ws_categories.column_dimensions["B"].width = 15
-        ws_categories.column_dimensions["C"].width = 15
-        ws_categories.column_dimensions["D"].width = 10
+        _apply_header_row(wc, 3, ["Category", "Amount", "% of Total", "Expenses"])
 
-        # Payment Method Sheet
-        ws_payment = wb.create_sheet("Payment Methods")
-        ws_payment["A1"] = "Payment Method Analysis"
-        ws_payment["A1"].font = title_font
-        ws_payment.merge_cells("A1:D1")
+        breakdown = report_data.get("category_breakdown", [])
+        for i, cat in enumerate(breakdown):
+            r = i + 4
+            alt = i % 2 == 1
+            _apply_data_row(wc, r, [
+                cat["name"],
+                cat["amount"],
+                cat["percentage"] / 100,
+                cat["count"],
+            ], alt=alt)
+            wc.cell(row=r, column=2).number_format = CURRENCY_FMT
+            wc.cell(row=r, column=3).number_format = "0.0%"
 
-        headers = ["Type", "Amount", "Percentage", "Transactions"]
-        for col, header in enumerate(headers, 1):
-            cell = ws_payment.cell(row=3, column=col)
-            cell.value = header
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = center_align
+        # Pie chart
+        if breakdown:
+            pie = PieChart()
+            pie.title = "Category Breakdown"
+            pie.style = 10
+            pie.width  = 14
+            pie.height = 10
 
-        type_breakdown = report_data["type_breakdown"]
-        ws_payment.cell(row=4, column=1).value = "Cash"
-        ws_payment.cell(row=4, column=2).value = type_breakdown["CASH"]["amount"]
-        ws_payment.cell(row=4, column=2).number_format = currency_format
-        ws_payment.cell(row=4, column=3).value = f"{type_breakdown['CASH']['percentage']:.1f}%"
-        ws_payment.cell(row=4, column=4).value = type_breakdown["CASH"]["count"]
+            # Data: amounts from column B
+            data_ref = Reference(wc, min_col=2, min_row=3, max_row=3 + len(breakdown))
+            cats_ref = Reference(wc, min_col=1, min_row=4, max_row=3 + len(breakdown))
+            pie.add_data(data_ref, titles_from_data=True)
+            pie.set_categories(cats_ref)
+            pie.dataLabels = None
 
-        ws_payment.cell(row=5, column=1).value = "Digital"
-        ws_payment.cell(row=5, column=2).value = type_breakdown["DIGITAL"]["amount"]
-        ws_payment.cell(row=5, column=2).number_format = currency_format
-        ws_payment.cell(row=5, column=3).value = f"{type_breakdown['DIGITAL']['percentage']:.1f}%"
-        ws_payment.cell(row=5, column=4).value = type_breakdown["DIGITAL"]["count"]
+            # Colour each slice
+            series = pie.series[0]
+            for idx, cat in enumerate(breakdown):
+                pt = DataPoint(idx=idx)
+                pt.graphicalProperties.solidFill = PIE_COLORS[idx % len(PIE_COLORS)]
+                series.dPt.append(pt)
 
-        ws_payment.column_dimensions["A"].width = 15
-        ws_payment.column_dimensions["B"].width = 15
-        ws_payment.column_dimensions["C"].width = 15
-        ws_payment.column_dimensions["D"].width = 15
+            wc.add_chart(pie, "F3")
 
-        # Save to bytes
-        excel_buffer = io.BytesIO()
-        wb.save(excel_buffer)
-        excel_buffer.seek(0)
-        return excel_buffer.getvalue()
+        # ── Save ──────────────────────────────────────────────────────────────
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return buf.getvalue()

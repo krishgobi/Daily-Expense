@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useTransactions } from '../../hooks/useTransactions'
 import { FileUpload } from '../Common/FileUpload'
+import { MediaViewer } from '../Common/MediaViewer'
 import { TransactionEditForm } from './TransactionEditForm'
 import { Badge } from '../UI/Badge'
 import { Button } from '../UI/Button'
@@ -32,6 +33,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status, 
   const [uploadError, setUploadError]         = useState('')
   const [expandedIds, setExpandedIds]         = useState<Set<string>>(new Set())
   const [editingId, setEditingId]             = useState<string | null>(null)
+  const [viewingMedia, setViewingMedia]       = useState<any | null>(null)
 
   const { transactions, total, isLoading, completeTransaction, isCompleting, reopenTransaction, isReopening, deleteTransaction } =
     useTransactions({ type, status, limit, offset })
@@ -213,16 +215,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status, 
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Proof</p>
                         <div className="flex flex-wrap gap-2">
                           {t.media.map((f: any) => (
-                            <a
+                            <button
                               key={f.id}
-                              href={f.file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400 transition"
+                              onClick={(e) => { e.stopPropagation(); setViewingMedia(f) }}
+                              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400 transition"
                             >
                               <Paperclip className="h-3 w-3" />
                               {f.file_name}
-                            </a>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -323,6 +323,16 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status, 
           />
         )}
       </Modal>
+
+      {/* Media viewer */}
+      {viewingMedia && (
+        <MediaViewer
+          url={viewingMedia.file_url}
+          name={viewingMedia.file_name}
+          fileType={viewingMedia.file_type || ''}
+          onClose={() => setViewingMedia(null)}
+        />
+      )}
     </>
   )
 }

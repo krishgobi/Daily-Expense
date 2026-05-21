@@ -5,6 +5,7 @@ import { useTransactions } from '../../hooks/useTransactions'
 import transactionService from '../../services/transactionService'
 import { FormField, Input, Select } from '../UI/FormElements'
 import { Button } from '../UI/Button'
+import { MediaViewer } from '../Common/MediaViewer'
 
 interface TransactionEditFormProps {
   transactionId: string
@@ -28,6 +29,7 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
   const [existingMedia, setExistingMedia]     = useState<any[]>([])
   const [error, setError]                     = useState('')
   const [isLoading, setIsLoading]             = useState(false)
+  const [viewingMedia, setViewingMedia]       = useState<any | null>(null)
 
   const { updateTransaction } = useTransactions()
 
@@ -165,16 +167,15 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Attached Proof</p>
             <div className="flex flex-wrap gap-2">
               {existingMedia.map((f) => (
-                <a
+                <button
                   key={f.id}
-                  href={f.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400 transition"
+                  type="button"
+                  onClick={() => setViewingMedia(f)}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400 transition"
                 >
                   <Paperclip className="h-3 w-3" />
                   {f.file_name}
-                </a>
+                </button>
               ))}
             </div>
           </div>
@@ -189,6 +190,15 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
           </Button>
         </div>
       </form>
+
+      {viewingMedia && (
+        <MediaViewer
+          url={viewingMedia.file_url}
+          name={viewingMedia.file_name}
+          fileType={viewingMedia.file_type || ''}
+          onClose={() => setViewingMedia(null)}
+        />
+      )}
     </div>
   )
 }

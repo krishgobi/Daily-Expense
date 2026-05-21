@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useExpenses } from '../../hooks/useExpenses'
 import { FileUpload } from '../Common/FileUpload'
+import { MediaViewer } from '../Common/MediaViewer'
 import { MediaFile } from '../../services/expenseService'
 import { ExpenseCardSkeleton, Skeleton } from '../UI/SkeletonLoader'
 import { Badge } from '../UI/Badge'
@@ -32,6 +33,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
   const [editingId, setEditingId]       = useState<string | null>(null)
   const [uploadingForId, setUploadingForId] = useState<string | null>(null)
   const [uploadError, setUploadError]   = useState('')
+  const [viewingMedia, setViewingMedia] = useState<MediaFile | null>(null)
 
   const filters = useMemo(() => ({ type, limit, offset }), [type, limit, offset])
   const { expenses, total, isLoading, deleteExpense, isDeleting, isFetching } = useExpenses(filters)
@@ -159,16 +161,14 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Attachments</p>
                       <div className="flex flex-wrap gap-2">
                         {expense.media.map((file: MediaFile) => (
-                          <a
+                          <button
                             key={file.id}
-                            href={file.file_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400 transition"
+                            onClick={(e) => { e.stopPropagation(); setViewingMedia(file) }}
+                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400 transition"
                           >
                             <Paperclip className="h-3 w-3" />
                             {file.file_name}
-                          </a>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -270,6 +270,16 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ type, showAll = false 
           />
         )}
       </Modal>
+
+      {/* Media viewer */}
+      {viewingMedia && (
+        <MediaViewer
+          url={viewingMedia.file_url}
+          name={viewingMedia.file_name}
+          fileType={viewingMedia.file_type}
+          onClose={() => setViewingMedia(null)}
+        />
+      )}
     </>
   )
 }
