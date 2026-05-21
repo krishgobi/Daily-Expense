@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # Groq API
     GROQ_API_KEY: str = ""
 
+    # Gemini API (fallback)
+    GEMINI_API_KEY: str = ""
+
     # Twilio WhatsApp
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""

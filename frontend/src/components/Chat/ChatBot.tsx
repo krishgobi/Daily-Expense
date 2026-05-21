@@ -7,8 +7,11 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { chatService, Conversation, Message } from '../../services/chatService'
+import { supabase } from '../../services/supabaseClient'
 import { cn } from '../../lib/utils'
 import { format, isToday, isYesterday } from 'date-fns'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -211,31 +214,81 @@ export const ChatBot: React.FC = () => {
     setIsLoading(true)
     if (inputRef.current) inputRef.current.style.height = '24px'
 
-    const tempId  = `temp_${Date.now()}`
-    const tempMsg: Message = { id: tempId, role: 'user', content: msg, created_at: new Date().toISOString() }
-    setMessages(prev => [...prev, tempMsg])
+    // Optimistically show user message
+    const userMsgId = `u_${Date.now()}`
+    const userMsg: Message = { id: userMsgId, role: 'user', content: msg, created_at: new Date().toISOString() }
+    setMessages(prev => [...prev, userMsg])
+
+    // AI bubble id — stable across token updates
+    const aiMsgId = `a_${Date.now()}`
 
     try {
-      const res = await chatService.sendMessage(msg, activeConvId ?? undefined)
-      if (res.is_new_conversation) {
-        const convs = await chatService.getConversations()
-        setConversations(convs)
-        setActiveConvId(res.conversation_id)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Not authenticated')
+
+      const res = await fetch(`${API_BASE}/chat/stream`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ message: msg, conversation_id: activeConvId }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || `Server error ${res.status}`)
       }
-      const aiMsg: Message = {
-        id:         res.message_id ?? `a_${Date.now()}`,
-        role:       'assistant',
-        content:    res.response,
-        created_at: new Date().toISOString(),
+
+      const reader  = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let   buffer  = ''
+      let   aiText  = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''   // keep incomplete line for next chunk
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          try {
+            const payload = JSON.parse(trimmed.slice(6))
+
+            if (payload.type === 'start') {
+              if (payload.is_new) {
+                setActiveConvId(payload.conversation_id)
+                // Refresh sidebar list in background
+                chatService.getConversations()
+                  .then(setConversations)
+                  .catch(() => {})
+              }
+            } else if (payload.type === 'token') {
+              aiText += payload.content
+              const snapshot = aiText
+              setMessages(prev => {
+                const exists = prev.some(m => m.id === aiMsgId)
+                const aiMsg: Message = {
+                  id:         aiMsgId,
+                  role:       'assistant',
+                  content:    snapshot,
+                  created_at: new Date().toISOString(),
+                }
+                return exists
+                  ? prev.map(m => m.id === aiMsgId ? aiMsg : m)
+                  : [...prev, aiMsg]
+              })
+            }
+          } catch { /* skip malformed line */ }
+        }
       }
-      setMessages(prev => [
-        ...prev.filter(m => m.id !== tempId),
-        { ...tempMsg, id: `u_${Date.now()}` },
-        aiMsg,
-      ])
-    } catch {
-      setMessages(prev => prev.filter(m => m.id !== tempId))
-      setError('Could not reach the AI. Make sure the backend is running.')
+    } catch (err: any) {
+      setMessages(prev => prev.filter(m => m.id !== aiMsgId))
+      setError(err?.message || 'Could not reach the AI. Make sure the backend is running.')
     } finally {
       setIsLoading(false)
     }

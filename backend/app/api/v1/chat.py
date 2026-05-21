@@ -4,11 +4,13 @@ WhatsApp-style persistent chat with Groq AI.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 from app.dependencies import get_current_user_id
 from app.services import chat_service_v2 as chat
+from app.services import chat_stream
 
 router = APIRouter()
 
@@ -41,6 +43,30 @@ class MessageOut(BaseModel):
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
+@router.post("/stream", tags=["chat"])
+async def stream_message(
+    req: SendMessageRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Stream AI response token-by-token (ChatGPT-style typing effect)."""
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    async def generate():
+        async for chunk in chat_stream.stream_chat(user_id, req.message.strip(), req.conversation_id):
+            yield f"data: {chunk}\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control":               "no-cache",
+            "X-Accel-Buffering":           "no",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
 
 @router.post("/send", response_model=SendMessageResponse, tags=["chat"])
 async def send_message(

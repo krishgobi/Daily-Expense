@@ -13,8 +13,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-MODEL_PRIMARY = "llama-3.3-70b-versatile"
-MODEL_FALLBACK = "llama3-70b-8192"
+MODEL_PRIMARY = "llama-3.1-8b-instant"
+MODEL_FALLBACK = "llama3-8b-8192"
 
 SYSTEM_PROMPT = """You are Tracksy AI, a friendly personal finance assistant built into an expense tracker app.
 
@@ -69,7 +69,7 @@ def _build_messages(
     """Build the messages array for Groq chat completion."""
     messages: List[Dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-    recent = history[-20:] if len(history) > 20 else history
+    recent = history[-8:] if len(history) > 8 else history
     for msg in recent:
         role = "user" if msg["role"] == "user" else "assistant"
         messages.append({"role": role, "content": msg["content"]})
@@ -90,7 +90,7 @@ def _get_client() -> AsyncOpenAI:
     return AsyncOpenAI(
         api_key=settings.GROQ_API_KEY,
         base_url="https://api.groq.com/openai/v1",
-        timeout=30.0,
+        timeout=15.0,
     )
 
 

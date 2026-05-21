@@ -149,18 +149,16 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, type = 'CAS
           <div className="flex items-start gap-2">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-              Expense saved. Upload a screenshot or receipt for verification.
+              Expense saved! Optionally attach a screenshot or receipt.
             </p>
           </div>
           <FileUpload
             entityId={createdExpenseId}
             entityType="expense"
-            onFileUpload={finish}
-            onError={(err) => setError(err)}
             maxFiles={5}
           />
           <Button variant="secondary" size="sm" fullWidth onClick={finish}>
-            Done without upload
+            Done
           </Button>
         </div>
       )}
