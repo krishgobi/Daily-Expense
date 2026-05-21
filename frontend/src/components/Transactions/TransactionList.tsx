@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format, differenceInDays } from 'date-fns'
 import {
-  ChevronDown, ChevronUp, Edit2, Trash2, CheckCircle2,
+  ChevronDown, ChevronUp, Edit2, Trash2, CheckCircle2, RotateCcw,
   Paperclip, ArrowRight, ArrowDownLeft, ArrowUpRight, Users,
   AlertTriangle,
 } from 'lucide-react'
@@ -33,7 +33,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status, 
   const [expandedIds, setExpandedIds]         = useState<Set<string>>(new Set())
   const [editingId, setEditingId]             = useState<string | null>(null)
 
-  const { transactions, total, isLoading, completeTransaction, isCompleting, deleteTransaction } =
+  const { transactions, total, isLoading, completeTransaction, isCompleting, reopenTransaction, isReopening, deleteTransaction } =
     useTransactions({ type, status, limit, offset })
 
   const getOverdueDays = (t: any) => {
@@ -261,7 +261,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status, 
                         Edit
                       </button>
 
-                      {isPending && (
+                      {isPending ? (
                         <>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleComplete(t.id) }}
@@ -279,6 +279,15 @@ export const TransactionList: React.FC<TransactionListProps> = ({ type, status, 
                             Delete
                           </button>
                         </>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); reopenTransaction(t.id) }}
+                          disabled={isReopening}
+                          className="btn-ghost text-xs h-8 px-2.5 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          {isReopening ? 'Reopening…' : 'Mark as Pending'}
+                        </button>
                       )}
                     </div>
                   </div>

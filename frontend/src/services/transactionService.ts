@@ -199,6 +199,21 @@ class TransactionService {
     return data as Transaction
   }
 
+  async reopenTransaction(id: string) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({
+        status:             'PENDING',
+        actual_return_date: null,
+        updated_at:         new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data as Transaction
+  }
+
   async deleteTransaction(id: string) {
     const { error } = await supabase.from('transactions').delete().eq('id', id)
     if (error) throw new Error(error.message)

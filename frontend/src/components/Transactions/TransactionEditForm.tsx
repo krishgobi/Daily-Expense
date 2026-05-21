@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { AlertCircle, Paperclip } from 'lucide-react'
 import { useTransactions } from '../../hooks/useTransactions'
-import { supabase } from '../../services/supabaseClient'
 import transactionService from '../../services/transactionService'
 import { FormField, Input, Select } from '../UI/FormElements'
 import { Button } from '../UI/Button'
@@ -19,11 +18,13 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
   onCancel,
 }) => {
   const [transactionType, setTransactionType] = useState<'BORROWED' | 'LENT'>('BORROWED')
+  const [status, setStatus]                   = useState<'PENDING' | 'COMPLETED'>('PENDING')
   const [personName, setPersonName]           = useState('')
   const [purpose, setPurpose]                 = useState('')
   const [amount, setAmount]                   = useState('')
   const [givenDate, setGivenDate]             = useState(format(new Date(), 'yyyy-MM-dd'))
   const [expectedReturnDate, setExpectedReturnDate] = useState('')
+  const [actualReturnDate, setActualReturnDate]     = useState('')
   const [existingMedia, setExistingMedia]     = useState<any[]>([])
   const [error, setError]                     = useState('')
   const [isLoading, setIsLoading]             = useState(false)
@@ -35,11 +36,13 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
       try {
         const t = await transactionService.getTransaction(transactionId)
         setTransactionType(t.transaction_type)
+        setStatus(t.status as 'PENDING' | 'COMPLETED')
         setPersonName(t.person_name)
         setPurpose(t.purpose || '')
         setAmount(t.amount.toString())
         setGivenDate(format(new Date(t.given_date), 'yyyy-MM-dd'))
         setExpectedReturnDate(t.expected_return_date ? format(new Date(t.expected_return_date), 'yyyy-MM-dd') : '')
+        setActualReturnDate(t.actual_return_date ? format(new Date(t.actual_return_date), 'yyyy-MM-dd') : '')
         setExistingMedia(t.media || [])
       } catch {
         setError('Failed to load transaction details')
@@ -58,7 +61,7 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
 
     setIsLoading(true)
     try {
-      await updateTransaction({
+      updateTransaction({
         id: transactionId,
         updates: {
           transaction_type: transactionType,
@@ -67,6 +70,7 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
           amount: numAmount,
           given_date: givenDate,
           expected_return_date: expectedReturnDate || undefined,
+          ...(status === 'COMPLETED' && { actual_return_date: actualReturnDate || undefined }),
         },
       })
       onSuccess?.()
@@ -143,6 +147,17 @@ export const TransactionEditForm: React.FC<TransactionEditFormProps> = ({
             min={givenDate}
           />
         </FormField>
+
+        {status === 'COMPLETED' && (
+          <FormField label="Actual Return Date">
+            <Input
+              type="date"
+              value={actualReturnDate}
+              onChange={(e) => setActualReturnDate(e.target.value)}
+              min={givenDate}
+            />
+          </FormField>
+        )}
 
         {/* Existing attachments */}
         {existingMedia.length > 0 && (

@@ -157,6 +157,25 @@ class TransactionService:
         return transaction
 
     @staticmethod
+    def reopen_transaction(
+        db: Session,
+        user_id: UUID,
+        transaction_id: UUID,
+    ) -> Transaction:
+        """Revert a completed transaction back to pending."""
+        transaction = TransactionService.get_transaction(db, user_id, transaction_id)
+
+        transaction.status = "PENDING"
+        transaction.actual_return_date = None
+        transaction.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(transaction)
+
+        logger.info(f"Transaction reopened: {transaction.person_name}")
+        return transaction
+
+    @staticmethod
     def delete_transaction(db: Session, user_id: UUID, transaction_id: UUID) -> dict:
         """Delete a transaction."""
         transaction = TransactionService.get_transaction(db, user_id, transaction_id)

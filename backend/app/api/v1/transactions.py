@@ -229,6 +229,31 @@ async def complete_transaction(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.put("/{transaction_id}/reopen", response_model=dict, tags=["transactions"])
+async def reopen_transaction(
+    transaction_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Revert a completed transaction back to pending."""
+    try:
+        user_uuid = UUID(user_id)
+        transaction = TransactionService.reopen_transaction(
+            db,
+            user_uuid,
+            UUID(transaction_id),
+        )
+        return {
+            "status": "success",
+            "data": TransactionResponse.from_orm(transaction),
+            "message": "Transaction reopened successfully",
+        }
+    except AppException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/{transaction_id}", response_model=dict, tags=["transactions"])
 async def delete_transaction(
     transaction_id: str,

@@ -49,6 +49,13 @@ export const useTransactions = (filters?: {
     },
   })
 
+  const reopenMutation = useMutation({
+    mutationFn: (id: string) => transactionService.reopenTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: any }) =>
       transactionService.updateTransaction(id, updates),
@@ -75,6 +82,8 @@ export const useTransactions = (filters?: {
     isCreating: createMutation.isPending,
     completeTransaction: completeMutation.mutate,
     isCompleting: completeMutation.isPending,
+    reopenTransaction: reopenMutation.mutate,
+    isReopening: reopenMutation.isPending,
     updateTransaction: updateMutation.mutate,
     isUpdating: updateMutation.isPending,
     deleteTransaction: deleteMutation.mutate,
